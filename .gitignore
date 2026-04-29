@@ -1,0 +1,12 @@
+# Ignorar pastas de backup locais
+App_Expo2026_Backup/
+*backup*/
+*.bak
+
+# Ignorar arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar configurações de IDE
+.vscode/
+.idea/

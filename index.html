@@ -1,0 +1,3537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SESC Exposições</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/minified/introjs.min.css">
+<script src="https://cdn.jsdelivr.net/npm/intro.js@7.2.0/intro.min.js"></script>
+<style>
+  /* Multi-select Status */
+  .custom-multiselect { position: relative; width: 220px; }
+  .multiselect-btn { 
+    background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; 
+    font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .multiselect-btn::after { content: '▼'; font-size: 8px; margin-left: 8px; opacity: 0.5; }
+  .multiselect-content { 
+    position: absolute; top: calc(100% + 5px); left: 0; width: 100%; 
+    background: #fff; border: 1px solid var(--border); border-radius: 8px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; z-index: 1000; padding: 10px;
+    max-height: 250px; overflow-y: auto;
+  }
+  .multiselect-content.open { display: block; }
+  .multiselect-option { 
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; 
+    font-size: 13px; cursor: pointer; border-radius: 4px; transition: background 0.1s;
+  }
+  .multiselect-option:hover { background: var(--bg); }
+  .multiselect-option input { cursor: pointer; }
+
+  .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .admin-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 12px 16px; border-bottom: 2px solid var(--border); }
+  .admin-table td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .admin-table tr:hover { background: rgba(0,0,0,0.01); }
+  .admin-role-sel { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; background: #fff; }
+  .last-access { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+
+  :root {
+    --bg:        #f5f3ef;
+    --surface:   #ffffff;
+    --border:    #e2ddd6;
+    --text:      #1a1814;
+    --muted:     #7a746b;
+    --accent:    #c0392b;
+    --accent2:   #1a3a2a;
+    --tag-bg:    #ede9e3;
+    --radius:    6px;
+    --shadow:    0 1px 4px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--accent2); }
+  .login-box { background: var(--surface); border-radius: 12px; padding: 48px 40px; width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+  .login-logo { font-family: 'Fraunces', serif; font-weight: 300; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .login-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 400; color: var(--text); margin-bottom: 32px; line-height: 1.2; }
+  .login-title em { font-style: italic; color: var(--accent); }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .field input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); }
+  .field input:focus { outline: none; border-color: var(--accent2); }
+  .btn-primary { width: 100%; padding: 12px; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; }
+  .btn-primary:disabled { opacity: 0.5; cursor: default; }
+  .login-error { color: var(--accent); font-size: 13px; margin-top: 12px; display: none; }
+
+  #app { display: none; min-height: 100vh; }
+  header { background: var(--accent2); color: #fff; padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header-brand { font-family: 'Fraunces', serif; font-weight: 300; font-size: 18px; }
+  .header-brand span { opacity: 0.5; margin: 0 8px; }
+  .header-brand em { font-style: italic; }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .user-badge { font-size: 12px; opacity: 0.75; }
+  .btn-logout { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 5px 14px; border-radius: 20px; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; }
+  .nav-item { padding: 14px 18px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .nav-item:hover { color: var(--text); }
+  .nav-item.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  main { padding: 32px; max-width: 1280px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { display: flex; align-items: flex-end; justify-content: space-between; }
+  .painel-header {
+    padding: 38px 40px; background: var(--bg); border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .painel-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+  .painel-unidade { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .painel-titulo  { font-family: 'Fraunces', serif; font-size: 42px; font-weight: 400; color: var(--text); margin-bottom: 18px; line-height: 1.05; width: 100%; word-break: break-word; }
+  .painel-meta    { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 16px; margin-bottom: 4px; }
+  .page-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 400; }
+  .page-title small { display: block; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--muted); font-weight: 400; margin-bottom: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .btn-add { background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; }
+
+  .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .filter-select, .search-input { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--surface); }
+  .search-input { min-width: 220px; }
+  .filter-select:focus, .search-input:focus { outline: none; border-color: var(--accent2); }
+
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; position: relative; }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+  .card-status-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 8px 8px 0 0; }
+  .card-unidade { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .card-titulo { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 400; line-height: 1.3; margin-bottom: 12px; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .card-datas { font-size: 12px; color: var(--muted); }
+  .card-info { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-progress { margin-top: 10px; }
+  .card-progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .card-progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s; background: var(--accent2); }
+  .card-progress-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  .tag { background: var(--tag-bg); color: var(--muted); padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .tag.s-Aberta         { background: #dcfce7; color: #166534; }
+  .tag.s-Em_produção    { background: #fef3c7; color: #92400e; }
+  .tag.s-Em_aprovação   { background: #e8f0fe; color: #1a56c4; }
+  .tag.s-Em_tratativas  { background: #ede9fe; color: #5b21b6; }
+  .tag.s-Suspensa       { background: #fff7ed; color: #c2410c; }
+  .tag.s-Encerrada      { background: #f1f5f9; color: #64748b; }
+  .tag.s-Cancelada      { background: #fee2e2; color: #991b1b; }
+  .tag.s-Postergada     { background: #fdf4ff; color: #86198f; }
+  .bar-Aberta        { background: #22c55e; }
+  .bar-Em_produção   { background: #f59e0b; }
+  .bar-Em_aprovação  { background: #3b82f6; }
+  .bar-Em_tratativas { background: #8b5cf6; }
+  .bar-Suspensa      { background: #f97316; }
+  .bar-Encerrada     { background: #94a3b8; }
+  .bar-Cancelada     { background: #ef4444; }
+  .bar-Postergada    { background: #d946ef; }
+
+  .empty-state { text-align: center; padding: 80px 20px; color: var(--muted); grid-column: 1/-1; }
+
+  /* KPI Dashboard */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 28px; margin-top: 20px; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .kpi-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent2); opacity: 0.3; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 400; color: var(--text); line-height: 1; margin-bottom: 6px; }
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Dashboard Charts */
+  .dash-row { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; box-shadow: var(--shadow); }
+  .dash-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.02em; }
+  
+  .simple-bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .simple-bar-label { font-size: 11px; color: var(--muted); width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+  .simple-bar-bg { flex-grow: 1; background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden; }
+  .simple-bar-fill { height: 100%; background: var(--accent2); border-radius: 4px; transition: width 0.6s ease; }
+  .simple-bar-value { font-size: 11px; font-weight: 700; color: var(--text); width: 30px; text-align: right; }
+
+  .status-dot-list { list-style: none; display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .status-dot-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Chips */
+  .chip-funcao { display: inline-block; background: var(--tag-bg); color: var(--muted); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; margin: 2px 2px 2px 0; }
+  .chip-participacao { display: inline-block; background: #e8f0fe; color: #1a56c4; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; margin: 2px 2px 2px 0; white-space: nowrap; }
+  .chip-more { background: var(--border); color: var(--muted); }
+
+  /* Funcao checkboxes no modal */
+  .funcao-checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .funcao-check-label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; padding: 4px 10px; border: 1px solid var(--border); border-radius: 20px; transition: all 0.1s; }
+  .funcao-check-label:has(input:checked) { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .empty-state p { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 300; margin-bottom: 8px; }
+
+  /* TIMELINE / GANTT */
+  .timeline-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; margin-top: 20px; box-shadow: var(--shadow); position: relative; }
+  .timeline-header { display: grid; grid-template-columns: 240px repeat(12, 1fr); background: #eee; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .timeline-header-cell { padding: 12px; text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-right: 1px solid var(--border); }
+  .timeline-row { display: grid; grid-template-columns: 240px repeat(12, 1fr); border-bottom: 1px solid var(--border); min-height: 48px; position: relative; }
+  .timeline-row:hover { background: rgba(0,0,0,0.01); }
+  .timeline-unit-cell { padding: 12px 16px; border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; }
+  .timeline-unit-name { font-weight: 600; font-size: 13px; color: var(--text); }
+  .timeline-unit-space { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .timeline-month-cell { border-right: 1px solid #f0f0f0; position: relative; min-width: 80px; }
+  
+  .timeline-bar-container { position: absolute; left: 240px; right: 0; top: 0; bottom: 0; pointer-events: none; padding: 8px 0; display: flex; align-items: center; }
+  .timeline-bar { 
+    height: 32px; border-radius: 6px; position: absolute; pointer-events: auto; cursor: pointer;
+    font-size: 11px; color: #fff; display: flex; align-items: center; padding: 0 10px;
+    font-weight: 500; transition: transform 0.15s, box-shadow 0.15s; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .timeline-bar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 5; }
+  
+  .unit-space-badge { font-size: 10px; background: var(--tag-bg); color: var(--muted); padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+  
+  /* Unidade Modal specific */
+  .espacos-lista { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .espaco-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); }
+  .espaco-item:last-child { border-bottom: none; }
+  .espaco-item-info { display: flex; gap: 10px; font-size: 13px; }
+  .btn-remove-espaco { color: var(--accent); cursor: pointer; background: none; border: none; font-size: 16px; }
+  .add-espaco-row { display: flex; gap: 8px; margin-top: 8px; }
+  .add-espaco-row input { flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; }
+
+  /* UNIT CARDS */
+  .unidade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; margin-top: 20px; }
+  .unidade-card { 
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; 
+    box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .unidade-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+  .unidade-card-type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+  .unidade-card-name { font-family: 'Fraunces', serif; font-size: 22px; color: var(--text); margin-bottom: 8px; }
+  .unidade-card-stats { display: flex; gap: 12px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: auto; }
+  .unidade-stat-item { flex: 1; }
+  .unidade-stat-value { font-family: 'Fraunces', serif; font-size: 16px; color: var(--primary); }
+  .unidade-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  
+  .unidade-expos-info { display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.02); padding: 12px; border-radius: 8px; }
+  .unidade-expo-row { display: flex; flex-direction: column; gap: 2px; }
+  .unidade-expo-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+  .unidade-expo-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .unidade-expo-empty { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  /* REPOSITORY LIST */
+  .repo-lista { margin-top: 10px; }
+  .repo-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f9f9f9; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border); }
+  .repo-item-link { font-size: 13px; font-weight: 500; color: var(--accent); text-decoration: none; }
+  .repo-item-link:hover { text-decoration: underline; }
+
+  .unit-tab-content { display: none; }
+  .unit-tab-content.active { display: block; }
+
+  /* TEAM TAGS */
+  .equipe-membro-tag { 
+    background: var(--tag-bg); color: var(--text); padding: 4px 10px; border-radius: 100px; 
+    font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 6px; 
+    border: 1px solid var(--border);
+  }
+  .equipe-membro-tag .remove { color: var(--accent); cursor: pointer; font-size: 14px; line-height: 1; margin-bottom: 1px; }
+  .equipe-membro-tag .remove:hover { color: #b91c1c; }
+
+
+
+
+  /* TEAM EDITOR REDESIGN */
+  .equipe-grid { 
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; 
+    margin-top: 10px; border-top: 1px solid var(--border); padding-top: 20px;
+  }
+  .equipe-papel-row { 
+    background: #fdfdfd; border: 1px solid var(--border); border-radius: 8px; 
+    padding: 14px; display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  .equipe-papel-label { 
+    font-size: 10px; font-weight: 700; text-transform: uppercase; 
+    letter-spacing: 0.5px; color: var(--muted); margin-bottom: 2px;
+  }
+  .equipe-membros-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .equipe-search-input { 
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); 
+    border-radius: var(--radius); font-size: 12px; transition: border-color 0.2s;
+    background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 95% center;
+  }
+  .equipe-search-input:focus { outline: none; border-color: var(--primary); }
+  
+  .equipe-dropdown { 
+    position: absolute; top: 100%; left: 0; right: 0; 
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12); z-index: 500; margin-top: 4px; 
+    max-height: 200px; overflow-y: auto;
+  }
+  .equipe-dropdown-item { 
+    padding: 10px 14px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #f8f8f8;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .equipe-dropdown-item:last-child { border-bottom: none; }
+  .equipe-dropdown-item:hover { background: #f5f3ef; color: var(--primary); }
+  .equipe-dropdown-item small { opacity: 0.6; font-size: 11px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: none; overflow-y: auto; padding: 40px 20px; }
+  .modal-overlay.open { display: block; }
+  .modal { background: var(--surface); border-radius: 12px; width: 100%; max-width: 720px; margin: 0 auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { padding: 24px 28px 0; display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 400; }
+  .modal-close { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; }
+  .modal-body { padding: 20px 28px; }
+
+  .form-section { margin-bottom: 24px; }
+  .form-section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .form-field input, .form-field select, .form-field textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--bg); }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline: none; border-color: var(--accent2); }
+  .form-field textarea { resize: vertical; min-height: 68px; }
+
+  .modal-footer { padding: 0 28px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .btn-cancel { padding: 9px 18px; border: 1px solid var(--border); border-radius: var(--radius); background: none; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; color: var(--muted); }
+  .btn-delete { padding: 9px 16px; border: 1px solid #fca5a5; border-radius: var(--radius); background: none; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; color: var(--accent); }
+  .btn-save { padding: 9px 22px; background: var(--accent2); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; }
+
+  .data-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+  .data-table thead { background: var(--tag-bg); }
+  .data-table th { text-align: left; padding: 11px 16px; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .data-table td { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 13px; }
+  .data-table tr:hover td { background: var(--bg); cursor: pointer; }
+
+  .loading { text-align: center; padding: 60px; color: var(--muted); font-style: italic; }
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent2); color: #fff; padding: 12px 20px; border-radius: var(--radius); font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #toast.error { background: var(--accent); }
+
+  .kpi-value { font-size: clamp(1rem, 2.5vw, 1.3rem) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .timeline-bar-dates { display: block; font-size: 9px; opacity: 0.9; margin-top: 1px; font-weight: 400; font-family: 'DM Sans', sans-serif; }
+  .timeline-bar { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; line-height: 1.1; overflow: hidden; padding: 0 4px; }
+
+  /* ── PAINEL LATERAL ── */
+  #painel-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0); z-index: 300;
+    pointer-events: none; transition: background 0.3s;
+  }
+  #painel-overlay.open { background: rgba(0,0,0,0.4); pointer-events: all; }
+  #painel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 66%;
+    background: var(--surface); box-shadow: -8px 0 40px rgba(0,0,0,0.15);
+    transform: translateX(100%); transition: transform 0.32s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column; z-index: 301; overflow: hidden;
+  }
+  #painel-overlay.open #painel { transform: translateX(0); }
+
+  .painel-header-actions { display: flex; gap: 8px; flex-shrink: 0; margin-top: 2px; }
+  .btn-painel-editar {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 16px; border-radius: 20px; font-size: 12px;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-painel-editar:hover { background: var(--bg); border-color: var(--muted); }
+  .btn-painel-fechar {
+    background: none; border: none; color: var(--muted);
+    font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px;
+    transition: color 0.15s;
+  }
+  .btn-painel-fechar:hover { color: var(--text); }
+  .painel-header-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .painel-tabs {
+    display: flex; background: var(--surface);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .painel-tab {
+    padding: 13px 22px; font-size: 13px; font-weight: 500; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .painel-tab:hover { color: var(--text); }
+  .painel-tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  .painel-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
+  .painel-tab-content { display: none; }
+  .painel-tab-content.active { display: block; }
+
+  /* Cronograma */
+  .etapa-grupo { margin-bottom: 28px; }
+  .etapa-titulo {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .etapa-badge {
+    background: var(--tag-bg); padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; color: var(--muted);
+  }
+  .tarefa-row {
+    display: grid; grid-template-columns: 1fr 120px 140px 32px;
+    gap: 10px; align-items: center; padding: 8px 10px; border-radius: 6px;
+    transition: background 0.1s;
+  }
+  .tarefa-row:hover { background: var(--bg); }
+  .tarefa-nome { font-size: 13px; }
+  .tarefa-data { font-size: 12px; color: var(--muted); }
+  .tarefa-status-sel {
+    font-size: 12px; padding: 4px 8px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg);
+    font-family: 'DM Sans', sans-serif; color: var(--text); cursor: pointer;
+  }
+  .tarefa-status-sel:focus { outline: none; border-color: var(--accent2); }
+  .tarefa-obs-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 15px; padding: 0; line-height: 1;
+  }
+  .tarefa-obs-btn.has-obs { color: var(--accent2); }
+  .tarefa-atrasada .tarefa-nome { color: var(--accent); }
+  .tarefa-atrasada .tarefa-data { color: var(--accent); font-weight: 500; }
+
+  .btn-gerar-cronograma {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent2); color: #fff; border: none;
+    padding: 12px 22px; border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; margin-bottom: 24px;
+  }
+  .btn-gerar-cronograma:disabled { opacity: 0.5; cursor: default; }
+  .cronograma-aviso {
+    background: #fef3c7; border: 1px solid #fde68a; border-radius: var(--radius);
+    padding: 12px 16px; font-size: 13px; color: #92400e; margin-bottom: 20px;
+  }
+
+  /* Dados */
+  .dados-secao { margin-bottom: 28px; }
+  .dados-secao-titulo {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .dados-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+  .dados-item {}
+  .dados-label {
+    font-size: 11px; font-weight: 500; color: var(--muted);
+    letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 2px;
+  }
+  .dados-valor { font-size: 13px; color: var(--text); }
+  .dados-valor.vazio { color: var(--muted); font-style: italic; }
+  .dados-full { grid-column: 1 / -1; }
+
+  /* Contratos Cards */
+  .contrato-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .contrato-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  .contrato-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .contrato-valor {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    color: var(--primary);
+  }
+  .contratos-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  /* Equipe editor */
+  .equipe-papel-bloco { margin-bottom: 16px; }
+  .equipe-papel-label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+  .equipe-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; min-height: 28px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--accent2); color: #fff;
+    padding: 4px 10px; border-radius: 20px; font-size: 12px;
+  }
+  .chip-remove {
+    background: none; border: none; color: rgba(255,255,255,0.7);
+    cursor: pointer; font-size: 15px; line-height: 1; padding: 0;
+  }
+  .chip-remove:hover { color: #fff; }
+  .equipe-add-row { display: flex; gap: 6px; }
+  .equipe-search {
+    flex: 1; padding: 6px 10px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: 'DM Sans', sans-serif;
+    font-size: 12px; background: var(--bg); color: var(--text);
+  }
+  .equipe-search:focus { outline: none; border-color: var(--accent2); }
+  .equipe-dropdown {
+    position: absolute; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    max-height: 180px; overflow-y: auto; z-index: 500; min-width: 220px;
+  }
+  .equipe-dropdown-item {
+    padding: 8px 12px; font-size: 13px; cursor: pointer;
+  }
+  .equipe-dropdown-item:hover { background: var(--bg); }
+  .equipe-dropdown-item small { color: var(--muted); font-size: 11px; }
+
+  /* Painel dados — equipe */
+  .painel-equipe-item {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .painel-equipe-item:last-child { border-bottom: none; }
+  .painel-equipe-papel { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; min-width: 130px; flex-shrink: 0; }
+  .painel-equipe-nome { font-size: 13px; color: var(--text); }
+
+  /* Histórico */
+  .historico-bloco {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+    margin-bottom: 20px; min-height: 80px;
+  }
+  .historico-bloco.vazio { color: var(--muted); font-style: italic; }
+  .historico-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .btn-salvar-historico {
+    background: var(--accent2); color: #fff; border: none;
+    padding: 9px 20px; border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer;
+  }
+  .historico-textarea {
+    width: 100%; padding: 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; background: var(--bg); color: var(--text);
+    resize: vertical; min-height: 120px; margin-bottom: 10px;
+  }
+  .historico-textarea:focus { outline: none; border-color: var(--accent2); }
+
+  /* BOTÃO TOUR NO HEADER */
+  .btn-tour { 
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); 
+    color: #fff; padding: 5px 16px; border-radius: 20px; font-size: 11px; 
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    font-weight: 500; margin-right: 8px;
+  }
+  .btn-tour:hover { background: var(--accent); border-color: var(--accent); }
+
+  /* CUSTOMIZAÇÃO INTRO.JS PREMIUM */
+  .introjs-tooltip { 
+    background-color: var(--surface); border-radius: 16px; padding: 24px; 
+    box-shadow: 0 25px 60px rgba(26,58,42,0.2) !important; font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--border); min-width: 300px;
+  }
+  .introjs-tooltip-title { font-family: 'Fraunces', serif; color: var(--accent2); font-size: 19px; font-weight: 500; margin-bottom: 8px; }
+  .introjs-tooltiptext { color: var(--text); font-size: 14px; line-height: 1.6; }
+  
+  .introjs-button { 
+    text-shadow: none !important; box-shadow: none !important; border: 1px solid var(--border) !important;
+    background: var(--bg) !important; color: var(--text) !important; border-radius: 8px !important;
+    font-size: 13px !important; padding: 8px 20px !important; min-width: 80px; text-align: center;
+    transition: all 0.2s; font-family: 'DM Sans', sans-serif !important;
+  }
+  .introjs-nextbutton { background: var(--accent2) !important; color: #fff !important; border-color: var(--accent2) !important; font-weight: 600 !important; }
+  .introjs-nextbutton:hover { background: var(--accent) !important; border-color: var(--accent) !important; }
+  .introjs-skipbutton { color: var(--muted) !important; min-width: 60px; font-weight: 400; }
+  
+  .introjs-bullets ul li a.active { background: var(--accent2) !important; }
+  .introjs-helperLayer { background-color: rgba(26, 58, 42, 0.45) !important; border-radius: 8px; }
+  .introjs-tooltipbuttons { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px; display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ABAS DE ANO FISCAL */
+  .ano-tabs { display: flex; gap: 6px; align-items: center; margin-bottom: 20px; margin-top: 12px; }
+  .ano-tab {
+    padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ano-tab:hover { border-color: var(--accent2); color: var(--text); }
+  .ano-tab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .ano-tab .badge-futuro {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    background: rgba(255,255,255,0.25); padding: 1px 5px; border-radius: 8px;
+  }
+  .ano-tab:not(.active) .badge-futuro {
+    background: #fef3c7; color: #92400e;
+  }
+
+  /* BARRAS ESTIMADAS */
+  .timeline-bar.estimated {
+    border: 2px dashed rgba(0,0,0,0.2) !important;
+    background-image: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent) !important;
+    background-size: 20px 20px !important;
+    opacity: 0.8;
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">SESC São Paulo</div>
+    <div class="login-title">Gestão de<br><em>Exposições</em></div>
+    <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
+    <div class="field"><label>Senha</label><input type="password" id="login-password" placeholder="••••••••"></div>
+    <button class="btn-primary" id="btn-login">Entrar</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="header-brand">SESC <span>/</span> <em>Exposições</em></div>
+    <div class="header-right">
+      <button class="btn-tour" id="btn-tour" title="Tutorial de como usar">Como usar?</button>
+      <span class="user-badge" id="user-badge"></span>
+      <button class="btn-logout" id="btn-logout">Sair</button>
+    </div>
+  </header>
+  <nav>
+    <div class="nav-item active" data-page="visao-geral">Visão Geral</div>
+    <div class="nav-item" data-page="timeline">Timeline</div>
+    <div class="nav-item" data-page="aberturas">Aberturas</div>
+    <div class="nav-item" data-page="colaboradores">Colaboradores</div>
+    <div class="nav-item" data-page="educativo">Educativo</div>
+    <div class="nav-item" data-page="unidades">Unidades</div>
+    <div class="nav-item" data-page="admin" id="nav-admin">Admin</div>
+  </nav>
+  <main>
+    <!-- VISÃO GERAL -->
+    <div class="page active" id="page-visao-geral">
+      <div class="page-header">
+        <div class="page-title"><small>Ano fiscal</small>Exposições <span id="ano-atual"></span></div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-add" id="btn-exportar-pdf" style="background:var(--muted)" onclick="exportarCaderno()">📄 Caderno PDF</button>
+          <button class="btn-add" id="btn-dashboard-premium" style="background:var(--accent2)" onclick="openBalancoAno()">📊 Balanço Executivo</button>
+          <button class="btn-add" id="btn-nova-exposicao">+ Nova Exposição</button>
+        </div>
+      </div>
+      <div class="ano-tabs ano-tabs-container">
+        <!-- preenchido dinamicamente por renderAnoTabs() -->
+      </div>
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="kpi-value" id="kpi-total">—</div><div class="kpi-label">Exposições</div><div class="kpi-sub" id="kpi-total-sub"></div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-ativas">—</div><div class="kpi-label">Em andamento</div><div class="kpi-sub" id="kpi-ativas-sub"></div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-orcamento">—</div><div class="kpi-label">Orçamento total previsto</div><div class="kpi-sub" id="kpi-orcamento-sub"></div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-proximas">—</div><div class="kpi-label">Próximas aberturas</div><div class="kpi-sub" id="kpi-proximas-sub"></div></div>
+      </div>
+      <div class="filters">
+        <input type="text" class="search-input" id="search" placeholder="Buscar por título ou curador...">
+        
+        <div class="custom-multiselect" id="ms-status">
+          <div class="multiselect-btn" id="ms-status-btn">Todos os status</div>
+          <div class="multiselect-content" id="ms-status-content">
+            <div style="padding: 5px 8px; border-bottom: 1px solid var(--border); margin-bottom: 5px; display: flex; justify-content: space-between;">
+              <button style="background: none; border: none; font-size: 11px; color: var(--primary); cursor: pointer; padding: 0;" onclick="msSelectAll()">Marcar todos</button>
+              <button style="background: none; border: none; font-size: 11px; color: var(--muted); cursor: pointer; padding: 0;" onclick="msClear()">Limpar</button>
+            </div>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Aberta"> Aberta</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Em produção"> Em produção</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Em aprovação"> Em aprovação</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Em tratativas"> Em tratativas</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Suspensa"> Suspensa</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Postergada"> Postergada</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Encerrada"> Encerrada</label>
+            <label class="multiselect-option"><input type="checkbox" class="status-chk" value="Cancelada"> Cancelada</label>
+          </div>
+        </div>
+
+        <select class="filter-select" id="filter-unidade"><option value="">Todas as unidades</option></select>
+        <select class="filter-select" id="filter-assistente"><option value="">Todos os assistentes</option></select>
+        <select class="filter-select" id="filter-semestre">
+          <option value="">Ambos os semestres</option>
+          <option>1o Semestre</option><option>2o Semestre</option>
+        </select>
+      </div>
+      <div id="cards-container" class="cards-grid"><div class="loading">Carregando exposições...</div></div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="page" id="page-timeline">
+      <div class="page-header" style="margin-bottom:0">
+        <div class="page-title"><small>Planejamento</small>Timeline de Exposições <span class="ano-atual-timeline"></span></div>
+      </div>
+      <div class="ano-tabs ano-tabs-container">
+        <!-- preenchido dinamicamente por renderAnoTabs() -->
+      </div>
+      <div id="timeline-container" class="timeline-wrapper">
+        <div class="loading">Carregando timeline...</div>
+      </div>
+    </div>
+
+    <!-- COLABORADORES -->
+    <div class="page" id="page-colaboradores">
+      <div class="page-header">
+        <div class="page-title"><small>Banco de dados</small>Colaboradores</div>
+        <button class="btn-add" id="btn-novo-colaborador">+ Novo Colaborador</button>
+      </div>
+      <div class="filters">
+        <input type="text" class="search-input" id="search-colab" placeholder="Buscar colaborador...">
+        <select class="filter-select" id="filter-funcao">
+          <option value="">Todas as funções</option>
+          <option value="Curador(a)">Curadoria</option>
+          <option value="Produção">Produção</option>
+          <option value="Arquiteto(a)">Arquitetura</option>
+          <option value="Designer">Designer</option>
+          <option value="Iluminação">Desenho de Luz</option>
+          <option value="Educativo">Educativo</option>
+          <option value="Acessibilidade">Acessibilidade</option>
+          <option value="Empresa de Cenotecnia">Empresa de Cenotecnia</option>
+          <option value="Empresa de Transporte">Empresa de Transporte</option>
+          <option value="Empresa de Iluminação">Empresa de Iluminação</option>
+          <option value="Empresa de Audiovisual">Empresa de Audiovisual</option>
+          <option value="Empresa de Comunicação Visual">Empresa de Comunicação Visual</option>
+        </select>
+      </div>
+      <div id="colaboradores-container"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- EDUCATIVO -->
+    <div class="page" id="page-educativo">
+      <div class="page-header">
+        <div class="page-title"><small>Equipe por Exposição</small>Dashboard Educativo</div>
+      </div>
+      <div id="educativo-container"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- UNIDADES -->
+    <div class="page" id="page-unidades">
+      <div class="page-header">
+        <div class="page-title"><small>Banco de dados</small>Unidades</div>
+        <button class="btn-add" id="btn-nova-unidade">+ Nova Unidade</button>
+      </div>
+      <div class="filters">
+        <input type="text" class="search-input" id="search-unidade" placeholder="Buscar unidade...">
+      </div>
+      <div id="unidades-container"><div class="loading">Carregando...</div></div>
+    </div>
+
+
+    <!-- ABERTURAS -->
+    <div class="page" id="page-aberturas">
+      <div class="page-header"><div class="page-title"><small>Secretaria</small>Controle de Aberturas</div></div>
+      <div id="aberturas-container"><div class="loading">Carregando...</div></div>
+    </div>
+
+
+    <div class="page" id="page-admin">
+      <div class="page-header"><div class="page-title"><small>Configurações</small>Administração e Usuários</div></div>
+      <div class="dash-card">
+        <div class="dash-title">Gestão de Equipe</div>
+        <div id="admin-users-container">
+          <div class="loading">Carregando usuários...</div>
+        </div>
+      </div>
+      <div class="dash-card" style="margin-top:24px">
+        <div class="dash-title">Registro de Atividades</div>
+        <div style="margin-bottom:12px">
+          <select id="filter-log-user" class="search-input" style="max-width:240px" onchange="loadLogs()">
+            <option value="">Todos os usuários</option>
+          </select>
+        </div>
+        <div id="logs-container"><div class="loading">Carregando logs...</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL EXPOSIÇÃO -->
+<div class="modal-overlay" id="modal-exposicao">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-exp-title">Nova Exposição</div>
+      <button class="modal-close" id="modal-exp-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-section-title">Identificação</div>
+        <div class="form-grid">
+          <div class="form-field full"><label>Título</label><input type="text" id="f-titulo" placeholder="Nome da exposição"></div>
+          <div class="form-field"><label>Unidade</label><select id="f-unidade"></select></div>
+          <div class="form-field"><label>Espaço</label><select id="f-espaco"><option value="">— Selecione a unidade —</option></select></div>
+          <div class="form-field full"><label>Assistentes</label>
+            <div id="assistentes-checkboxes" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px;"></div>
+          </div>
+          <div class="form-field"><label>Status</label>
+            <select id="f-status">
+              <option>Aberta</option><option>Em produção</option><option>Em aprovação</option>
+              <option selected>Em tratativas</option><option>Suspensa</option>
+              <option>Postergada</option><option>Encerrada</option><option>Cancelada</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Semestre</label>
+            <select id="f-semestre"><option value="">—</option><option>1o Semestre</option><option>2o Semestre</option></select>
+          </div>
+          <div class="form-field"><label>Abertura</label><input type="date" id="f-abertura"></div>
+          <div class="form-field"><label>Encerramento</label><input type="date" id="f-encerramento"></div>
+          <div class="form-field"><label>Período previsto</label><input type="text" id="f-periodo" placeholder="ex: Abril a Junho"></div>
+          <div class="form-field"><label>Capital / Interior</label>
+            <select id="f-capital"><option value="">—</option><option>Capital</option><option>Interior</option></select>
+          </div>
+          <div class="form-field"><label>Ano</label><input type="number" id="f-ano"></div>
+          <div class="form-field"><label>Orçamento Global (R$)</label><input type="number" id="f-valor" step="0.01"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Características e Parcerias</div>
+        <div class="form-field full" style="margin-bottom: 12px">
+          <label style="margin-bottom:8px">Características da Exposição</label>
+          <div style="display:flex; flex-wrap:wrap; gap:16px;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-internacional"> Internacional</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-itinerancia"> Itinerância</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-inedita"> Inédita</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-monografica"> Monográfica</label>
+          </div>
+        </div>
+        <div class="form-field full"><label>Parcerias institucionais / Texto livre</label><input type="text" id="f-parceria" placeholder="Ex: Sesc Nacional, Masp..."></div>
+        <div class="form-field full"><label>Link da Imagem de Capa</label><input type="text" id="f-imagem" placeholder="https://exemplo.com/imagem.jpg"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Visitação e Público</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Visitas à exposição (meta)</label><input type="number" id="f-visitas-expo-meta" placeholder="0"></div>
+          <div class="form-field"><label>Visitas à exposição (estatístico)</label><input type="number" id="f-visitas-expo-estat" placeholder="0"></div>
+          <div class="form-field"><label>Visitas mediadas (meta)</label><input type="number" id="f-visitas-med-meta" placeholder="0"></div>
+          <div class="form-field"><label>Visitas mediadas (estatístico)</label><input type="number" id="f-visitas-med-estat" placeholder="0"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Valores Complementares</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Cachê Curadoria (R$)</label><input type="number" id="f-cache-curadoria" step="0.01"></div>
+          <div class="form-field"><label>Valor Cenotecnia (R$)</label><input type="number" id="f-valor-cenotecnia" step="0.01"></div>
+          <div class="form-field"><label>Valor Pré-Produção (R$)</label><input type="number" id="f-valor-pre-producao" step="0.01"></div>
+          <div class="form-field"><label>Valor Produção (R$)</label><input type="number" id="f-cont-producao" step="0.01"></div>
+          <div class="form-field"><label>Valor Arquitetura (R$)</label><input type="number" id="f-cont-arquitetura" step="0.01"></div>
+          <div class="form-field"><label>Valor Educativo (R$)</label><input type="number" id="f-cont-educativo" step="0.01"></div>
+          <div class="form-field"><label>Valor Acessibilidade (R$)</label><input type="number" id="f-acessibilidade" step="0.01"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Educativo — Equipe Alocada</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Estagiários</label><input type="number" id="f-edu-estagiarios" placeholder="0"></div>
+          <div class="form-field"><label>Facilitador I</label><input type="number" id="f-edu-facilitador1" placeholder="0"></div>
+          <div class="form-field"><label>Facilitador II</label><input type="number" id="f-edu-facilitador2" placeholder="0"></div>
+          <div class="form-field"><label>Educador Social</label><input type="number" id="f-edu-educador-social" placeholder="0"></div>
+          <div class="form-field"><label>ASA</label><input type="number" id="f-edu-asa" placeholder="0"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Equipe</div>
+        <div id="equipe-editor"></div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Conteúdo e Notas</div>
+        <div class="form-grid">
+          <div class="form-field full"><label>Sinopse</label><textarea id="f-sinopse" placeholder="Texto de apresentação..."></textarea></div>
+          <div class="form-field full"><label>Notas adicionais</label><textarea id="f-notas"></textarea></div>
+          <div class="form-field full"><label>Referências / Links</label><input type="text" id="f-links"></div>
+          <div class="form-field full"><label>Ficha Técnica / Histórico</label><textarea id="f-historico" placeholder="Ficha completa, release, fotos, remarcações..."></textarea></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete" id="modal-exp-delete" style="display:none">Excluir</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" id="modal-exp-cancel">Cancelar</button>
+        <button class="btn-save" id="modal-exp-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL UNIDADE -->
+<div class="modal-overlay" id="modal-unidade">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-unit-title">Ficha da Unidade</div>
+      <button class="modal-close" id="modal-unit-close">×</button>
+    </div>
+    <div class="painel-tabs" style="padding: 0 28px;">
+      <div class="painel-tab active" data-unit-tab="tecnica">Equipe</div>
+      <div class="painel-tab" data-unit-tab="espacos">Espaços</div>
+      <div class="painel-tab" data-unit-tab="repositorio">Repositório</div>
+      <div class="painel-tab" data-unit-tab="visitacao">Visitação</div>
+    </div>
+    <div class="modal-body" style="padding: 20px 28px;">
+      <div class="form-grid">
+        <div class="form-field full"><label>Nome da Unidade</label><input type="text" id="fun-nome"></div>
+        <div class="form-field"><label>Capital / Interior</label>
+          <select id="fun-capital">
+            <option value="">— Selecione —</option>
+            <option value="Capital">Capital</option>
+            <option value="Interior">Interior</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- ABA: EQUIPE -->
+      <div class="unit-tab-content active" id="unit-tab-tecnica">
+        <div class="form-section">
+          <div class="form-section-title">Equipe Técnica</div>
+          <div class="form-grid">
+            <div class="form-field"><label>Gerente</label><input type="text" id="fun-gerente"></div>
+            <div class="form-field"><label>Gerente Adjunto</label><input type="text" id="fun-gerente-adj"></div>
+            <div class="form-field"><label>Coord. Programação</label><input type="text" id="fun-coord-prog"></div>
+            <div class="form-field"><label>Supervisor Artístico</label><input type="text" id="fun-super-art"></div>
+            <div class="form-field"><label>Técnico Artes Visuais</label><input type="text" id="fun-tec-artes"></div>
+            <div class="form-field"><label>Técnico Educativo</label><input type="text" id="fun-tec-edu"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: ESPAÇOS -->
+      <div class="unit-tab-content" id="unit-tab-espacos">
+        <div class="form-section">
+          <div class="form-section-title">Espaços Programáveis</div>
+          <div id="fun-espacos-lista" class="espacos-lista"></div>
+          <div class="add-espaco-row">
+            <input type="text" id="new-espaco-nome" placeholder="Nome do espaço...">
+            <input type="number" id="new-espaco-metragem" placeholder="m²" style="width:80px">
+            <button class="btn-add" id="btn-add-espaco">Adicionar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: REPOSITÓRIO -->
+      <div class="unit-tab-content" id="unit-tab-repositorio">
+        <div class="form-section">
+          <div class="form-section-title">Arquivos e Plantas</div>
+          <div id="fun-repo-lista" class="repo-lista"></div>
+          <div class="add-espaco-row">
+            <input type="text" id="new-repo-titulo" placeholder="Título (ex: Planta Baixa)...">
+            <input type="text" id="new-repo-url" placeholder="URL da imagem ou documento...">
+            <button class="btn-add" id="btn-add-repo">Adicionar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: VISITAÇÃO -->
+      <div class="unit-tab-content" id="unit-tab-visitacao">
+        <div class="form-section">
+          <div class="form-section-title">Visitação e Histórico</div>
+          <div id="unit-visitacao-resumo" style="margin-bottom:20px;">
+            <!-- preenchido via JS -->
+          </div>
+          <div class="form-section-title" style="font-size:12px; opacity:0.7">Histórico de Exposições</div>
+          <div id="unit-historico-lista" style="font-size:12px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete" id="modal-unit-delete" style="display:none">Excluir</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" id="modal-unit-cancel">Cancelar</button>
+        <button class="btn-save" id="modal-unit-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COLABORADOR -->
+<div class="modal-overlay" id="modal-colaborador">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-colab-title">Novo Colaborador</div>
+      <button class="modal-close" id="modal-colab-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>Nome</label><input type="text" id="fc-nome"></div>
+        <div class="form-field full"><label>Funções</label>
+          <div class="funcao-checks" id="fc-funcao-checks">
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Curador(a)"> Curadoria</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Produção"> Produção</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Arquiteto(a)"> Arquitetura</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Designer"> Designer</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Iluminação"> Desenho de Luz</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Educativo"> Educativo</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Acessibilidade"> Acessibilidade</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Empresa de Cenotecnia"> Cenotecnia</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Empresa de Transporte"> Transporte</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Empresa de Iluminação"> Empresa de Luz</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Empresa de Audiovisual"> Audiovisual</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Empresa de Comunicação Visual"> Comunicação Visual</label>
+          </div>
+        </div>
+        <div class="form-field"><label>Empresa</label><input type="text" id="fc-empresa"></div>
+        <div class="form-field"><label>Email</label><input type="email" id="fc-email"></div>
+        <div class="form-field"><label>Telefone</label><input type="text" id="fc-telefone"></div>
+        <div class="form-field full"><label>Observações</label><textarea id="fc-obs"></textarea></div>
+        <div class="form-field full" id="fc-participacoes-container" style="display:none">
+          <label>Exposições Participadas</label>
+          <div id="fc-participacoes" style="background:var(--bg);padding:12px;border-radius:var(--radius);font-size:12px;max-height:140px;overflow-y:auto;border:1px solid var(--border)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete" id="modal-colab-delete" style="display:none">Excluir</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" id="modal-colab-cancel">Cancelar</button>
+        <button class="btn-save" id="modal-colab-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- PAINEL LATERAL DE DETALHE -->
+<div id="painel-overlay">
+  <div id="painel">
+    <div class="painel-header">
+      <div class="painel-header-top">
+        <div>
+          <div class="painel-unidade" id="painel-unidade"></div>
+          <div class="painel-titulo" id="painel-titulo"></div>
+          <div class="painel-meta" id="painel-meta-top"></div>
+          <div class="painel-assistentes" id="painel-assistentes" style="margin-top:10px; font-size:13px; color:var(--primary); font-weight:600;"></div>
+        </div>
+        <div class="painel-header-actions">
+          <button class="btn-painel-editar" id="btn-painel-editar">✏️ Editar</button>
+          <button class="btn-painel-fechar" id="btn-painel-fechar">×</button>
+        </div>
+      </div>
+      <div class="painel-header-meta" id="painel-meta"></div>
+    </div>
+
+    <div class="painel-tabs">
+      <div class="painel-tab active" data-tab="visao-geral">Visão Geral</div>
+      <div class="painel-tab" data-tab="cronograma">Cronograma</div>
+    </div>
+
+    <div class="painel-body">
+      <!-- ABA: VISÃO GERAL -->
+      <div class="painel-tab-content active" id="tab-visao-geral">
+        <div id="painel-dados-content"></div>
+      </div>
+
+      <!-- ABA: CRONOGRAMA -->
+      <div class="painel-tab-content" id="tab-cronograma">
+        <div id="painel-cron-header"></div>
+        <div id="painel-cron-loading" class="loading">Carregando cronograma...</div>
+        <div id="painel-cron-content" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ejxdsnfoqfjivqquqfri.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqeGRzbmZvcWZqaXZxcXVxZnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTU2MTUsImV4cCI6MjA5MDM3MTYxNX0.GIFL4-ZawJXjii2-grilFwMtcrJY9bW24AImpqdteiE'
+const { createClient } = supabase
+const db = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let currentUser = null, currentProfile = null
+let allExposicoes = [], timelineExposicoes = [], allUnidades = [], allUsuarios = [], allColaboradores = [], allEspacos = []
+let editingExpId = null, editingColabId = null, editingUnitId = null
+let editingEquipe = {} // { papel: [{ id, nome }] }
+let editingUnitSpaces = []
+let editingUnitRepo = []
+
+// ── ANO FISCAL ATIVO NA VISÃO GERAL ──
+const ANO_BASE = new Date().getFullYear()
+let anoVisaoGeral = ANO_BASE
+
+function renderAnoTabs() {
+  const anos = [ANO_BASE - 2, ANO_BASE - 1, ANO_BASE, ANO_BASE + 1]
+  const containers = document.querySelectorAll('.ano-tabs-container')
+  containers.forEach(container => {
+    container.innerHTML = anos.map(a => {
+      const isFuturo = a > ANO_BASE
+      const badge = isFuturo ? `<span class="badge-futuro">próx.</span>` : ''
+      return `<button class="ano-tab ${a === anoVisaoGeral ? 'active' : ''}" onclick="setAnoVisaoGeral(${a})">${a}${badge}</button>`
+    }).join('')
+  })
+}
+
+function setAnoVisaoGeral(ano) {
+  anoVisaoGeral = ano
+  const anoStr = document.getElementById('ano-atual')
+  if (anoStr) anoStr.textContent = ano
+  document.querySelectorAll('.ano-atual-timeline').forEach(el => el.textContent = ano)
+  renderAnoTabs()
+  loadExposicoes()
+  loadTimeline()
+}
+
+// Helper robusto para buscar exposição (memória ou banco)
+async function getExposicao(id) {
+  if (!id) return null
+  // Buscar no estado global ou no arquivo morto se existir
+  let e = allExposicoes.find(x => x.id == id)
+  if (!e) {
+    e = timelineExposicoes.find(x => x.id == id)
+  }
+  
+  if (!e) {
+    const q = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+    const { data, error } = await db.from('exposicoes').select(q).eq('id', id).single()
+    if (!error && data) e = data
+  }
+  return e
+}
+
+let appInitialized = false;
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession()
+  if (session) await onLogin(session.user)
+  
+  db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN') {
+      // Evita o recarregamento pesado se o usuário já estiver logado
+      if (!currentUser || currentUser.id !== session?.user?.id || !appInitialized) {
+        await onLogin(session.user)
+      }
+    }
+    if (event === 'SIGNED_OUT') onLogout()
+  })
+}
+
+// Listener para quando a aba voltar a ficar ativa
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    // Checa silenciosamente se a sessão ainda existe sem recarregar tudo
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) {
+      onLogout();
+    }
+  }
+});
+
+
+// ── TOUR INTERATIVO PREMIUM ──
+async function startTour() {
+  const tour = introJs();
+  
+  // Função auxiliar para mudar de aba programaticamente
+  const goToTab = (pageId) => {
+    const navItem = document.querySelector(`nav .nav-item[data-page="${pageId}"]`);
+    if (navItem) navItem.click();
+  };
+
+  tour.setOptions({
+    nextLabel: 'Próximo →',
+    prevLabel: '← Voltar',
+    skipLabel: 'Pular',
+    doneLabel: 'Concluir',
+    showProgress: true,
+    showBullets: true,
+    exitOnOverlayClick: false,
+    scrollToElement: false,
+    disableInteraction: false,
+    steps: [
+      {
+        title: 'Bem-vindo ao SESC Exposições',
+        intro: 'Este é o novo cérebro estratégico das nossas mostras. Vamos conhecer como tudo se conecta?'
+      },
+      {
+        element: document.getElementById('kpi-grid'),
+        title: 'Painel Estratégico',
+        intro: 'Aqui você tem a visão macro: orçamentos globais e volume de projetos. Decisões baseadas em números reais.'
+      },
+      {
+        element: document.querySelector('nav'),
+        title: 'Navegação de Módulos',
+        intro: 'Cada aba guarda uma dimensão do projeto. Vamos navegar por elas agora.'
+      },
+      {
+        element: document.getElementById('timeline-container'),
+        title: 'Timeline & Planejamento',
+        intro: 'Aqui o tempo ganha forma. Visualize ocupações simultâneas e planeje 2026/2027 com precisão.',
+        page: 'timeline'
+      },
+      {
+        element: document.getElementById('colaboradores-container'),
+        title: 'Banco de Talentos',
+        intro: 'Todos os nossos curadores, produtores e empresas parceiras centralizados aqui.',
+        page: 'colaboradores'
+      },
+      {
+        element: document.getElementById('unidades-container'),
+        title: 'Infraestrutura',
+        intro: 'Conheça cada unidade, seus espaços físicos e repositórios de plantas e arquivos.',
+        page: 'unidades'
+      },
+      {
+        element: document.getElementById('arquivo-container'),
+        title: 'Memória e História',
+        intro: 'Nada se perde. Consulte exposições encerradas para referências e estatísticas passadas.',
+        page: 'arquivo'
+      },
+      {
+        title: 'O Sucesso depende de VOCÊ',
+        intro: `
+          <div style="text-align:center; padding:10px;">
+            <div style="font-size:50px; margin-bottom:15px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));">🤝</div>
+            <p style="font-family:'Fraunces', serif; font-size:20px; color:var(--accent2); margin-bottom:12px;">Engajamento é a Chave</p>
+            <p style="font-size:14px; line-height:1.6; color:var(--text);">Este app só terá visibilidade e inteligência se cada setor mantiver seus <b>dados atualizados</b>.</p>
+            <div style="margin-top:20px; padding:12px; background:var(--bg); border-radius:8px; font-size:12px; font-weight:500; color:var(--accent);">
+               Sua participação é o motor que move esta ferramenta!
+            </div>
+          </div>
+        `
+      }
+    ]
+  });
+
+  // Lógica para mudar de página antes de mostrar o passo
+  tour.onbeforechange(function(targetElement) {
+    const step = this._options.steps[this._currentStep];
+    if (step && step.page) {
+      goToTab(step.page);
+    } else if (this._currentStep === 0 || this._currentStep === 1 || this._currentStep === 2) {
+      goToTab('visao-geral');
+    }
+  });
+
+  tour.start();
+}
+
+
+
+async function onLogin(user) {
+  currentUser = user
+  let { data: profile, error: fetchErr } = await db.from('usuarios').select('*').eq('id', user.id).single()
+  
+  // Se o perfil não existe, vamos criá-lo automaticamente
+  if (!profile || fetchErr) {
+    console.log("Perfil não encontrado, criando novo perfil para:", user.email);
+    const { data: newProfile, error: insErr } = await db.from('usuarios').insert({
+      id: user.id,
+      email: user.email,
+      nome: user.user_metadata?.full_name || user.email.split('@')[0],
+      perfil: 'gestor' // Define como gestor para garantir seu acesso
+    }).select().single();
+    
+    if (!insErr) profile = newProfile;
+    else console.error("Erro ao criar perfil:", insErr);
+  }
+
+  currentProfile = profile
+  
+  // Atualizar último acesso
+  await db.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', user.id)
+
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+  document.getElementById('user-badge').textContent = profile?.nome || user.email
+  document.getElementById('ano-atual').textContent = anoVisaoGeral
+  renderAnoTabs()
+  const userPerfil = (profile?.perfil || '').toLowerCase();
+  if (userPerfil !== 'gestor') {
+    console.log('Acesso Admin negado para perfil:', profile?.perfil);
+    document.getElementById('nav-admin').style.display = 'none';
+  } else {
+    document.getElementById('nav-admin').style.display = 'flex';
+  }
+  await loadBaseData()
+  await loadExposicoes()
+  appInitialized = true;
+}
+
+function onLogout() {
+  document.getElementById('app').style.display = 'none'
+  document.getElementById('login-screen').style.display = 'flex'
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btnTour = document.getElementById('btn-tour')
+  if (btnTour) btnTour.addEventListener('click', startTour)
+
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim()
+    const pass  = document.getElementById('login-password').value
+    const btn = document.getElementById('btn-login')
+    const err = document.getElementById('login-error')
+    if (!email || !pass) { err.textContent = 'Preencha todos os campos.'; err.style.display = 'block'; return }
+    btn.disabled = true; btn.textContent = 'Entrando...'; err.style.display = 'none'
+    const { error } = await db.auth.signInWithPassword({ email, password: pass })
+    if (error) { err.textContent = 'Email ou senha incorretos.'; err.style.display = 'block' }
+    btn.disabled = false; btn.textContent = 'Entrar'
+  })
+
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-login').click() })
+  document.getElementById('btn-logout').addEventListener('click', () => db.auth.signOut())
+
+  document.querySelectorAll('nav .nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const page = item.getAttribute('data-page')
+      document.querySelectorAll('nav .nav-item').forEach(i => i.classList.remove('active'))
+      item.classList.add('active')
+      document.querySelectorAll('main .page').forEach(p => p.classList.remove('active'))
+      document.getElementById('page-' + page).classList.add('active')
+      if (page === 'visao-geral') loadExposicoes()
+      if (page === 'timeline') loadTimeline()
+      if (page === 'colaboradores') loadColaboradores()
+      if (page === 'educativo') loadEducativo()
+      if (page === 'unidades') loadUnidades()
+
+      if (page === 'aberturas') loadAberturas()
+      if (page === 'admin') { loadAdmin(); loadLogs() }
+      
+      const isCons = currentProfile?.perfil === 'consultor'
+      const btnNovo = document.getElementById('btn-abrir-modal-novo')
+      if (btnNovo) btnNovo.style.display = isCons ? 'none' : 'block'
+    })
+  })
+
+  // Listeners do Multiselect Status
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#ms-status')) {
+      const content = document.getElementById('ms-status-content')
+      if (content) content.classList.remove('open')
+    }
+  })
+
+  const msBtn = document.getElementById('ms-status-btn')
+  if (msBtn) {
+    msBtn.onclick = () => {
+      document.getElementById('ms-status-content').classList.toggle('open')
+    }
+  }
+
+  document.querySelectorAll('.status-chk').forEach(chk => {
+    chk.onchange = () => {
+      updateStatusBtnLabel()
+      loadExposicoes()
+    }
+  })
+
+  window.msSelectAll = () => {
+    document.querySelectorAll('.status-chk').forEach(c => c.checked = true)
+    updateStatusBtnLabel()
+    loadExposicoes()
+  }
+  window.msClear = () => {
+    document.querySelectorAll('.status-chk').forEach(c => c.checked = false)
+    updateStatusBtnLabel()
+    loadExposicoes()
+  }
+})
+
+
+function updateStatusBtnLabel() {
+  const checked = Array.from(document.querySelectorAll('.status-chk:checked'))
+  const btn = document.getElementById('ms-status-btn')
+  if (!btn) return
+  if (checked.length === 0) btn.textContent = 'Todos os status'
+  else if (checked.length === 1) btn.textContent = checked[0].value
+  else btn.textContent = checked.length + ' selecionados'
+}
+
+async function loadBaseData() {
+  const [{ data: unidades, error: uErr }, { data: usuarios }, { data: colabs }, { data: espacos }] = await Promise.all([
+    db.from('unidades').select('*').order('nome'),
+    db.from('usuarios').select('*').order('nome'),
+    db.from('colaboradores').select('id, nome, funcao').order('nome'),
+    db.from('unidade_espacos').select('*').order('nome')
+  ])
+  if(uErr) console.error('Error loading units:', uErr)
+  allUnidades = unidades || []
+  allUsuarios = usuarios || []
+  allColaboradores = colabs || []
+  allEspacos = espacos || []
+  
+  const fu = document.getElementById('filter-unidade')
+  fu.innerHTML = '<option value="">Todas as unidades</option>'
+  allUnidades.forEach(u => fu.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  const fa = document.getElementById('filter-assistente')
+  fa.innerHTML = '<option value="">Todos os assistentes</option>'
+  allUsuarios.forEach(u => fa.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  const su = document.getElementById('f-unidade')
+  su.innerHTML = '<option value="">— Selecione —</option>'
+  allUnidades.forEach(u => su.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  
+  const acb = document.getElementById('assistentes-checkboxes');
+  if(acb) {
+    acb.innerHTML = '';
+    allUsuarios.forEach(u => acb.innerHTML += `<label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer"><input type="checkbox" class="chk-assistente" id="chk-ast-${u.id}" value="${u.id}"> ${u.nome}</label>`);
+  }
+
+  // Listener para filtrar espaços quando mudar unidade no modal de expo
+  document.getElementById('f-unidade').addEventListener('change', (e) => updateEspacoDropdown(e.target.value))
+}
+
+function updateEspacoDropdown(unitId, selectedId = null) {
+  const sel = document.getElementById('f-espaco')
+  if (!unitId) { sel.innerHTML = '<option value="">— Selecione a unidade —</option>'; return }
+  const filtered = allEspacos.filter(s => s.unidade_id === unitId)
+  if (!filtered.length) { sel.innerHTML = '<option value="">Sem espaços cadastrados</option>'; return }
+  sel.innerHTML = '<option value="">— Selecione o espaço —</option>' + 
+    filtered.map(s => `<option value="${s.id}" ${s.id===selectedId?'selected':''}>${s.nome} (${s.metragem}m²)</option>`).join('')
+}
+
+async function loadExposicoes() {
+  const assistente = document.getElementById('filter-assistente').value
+  
+  let queryStr = assistente 
+    ? '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes!inner(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+    : '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+
+  let q = db.from('exposicoes').select(queryStr).eq('ano', anoVisaoGeral).order('titulo')
+  if (assistente) q = q.eq('exposicao_assistentes.usuario_id', assistente)
+
+  const unidade = document.getElementById('filter-unidade').value
+  if (unidade) q = q.eq('unidade_id', unidade)
+  
+  // Regra Visão Geral:
+  if (anoVisaoGeral <= 2025) {
+    q = q.in('status', ['Aberta', 'Encerrada'])
+  } else {
+    const selectedStatus = Array.from(document.querySelectorAll('.status-chk:checked')).map(c => c.value)
+    if (selectedStatus.length > 0) q = q.in('status', selectedStatus)
+  }
+
+  const semestre = document.getElementById('filter-semestre').value
+  if (semestre) q = q.eq('semestre', semestre)
+
+  const { data, error } = await q;
+  if (error) { console.error(error); return }
+  allExposicoes = data || []
+  renderCards(allExposicoes)
+  renderKPIs(allExposicoes)
+}
+
+function renderKPIs(list) {
+  const hoje = new Date()
+  const em60dias = new Date(); em60dias.setDate(hoje.getDate() + 60)
+  const ativos = ['Aberta','Em produção','Em aprovação','Em tratativas']
+  const ativas = list.filter(e => ativos.includes(e.status))
+  const proximas = list.filter(e => {
+    if (!e.data_abertura) return false
+    const d = new Date(e.data_abertura + 'T00:00:00')
+    return d >= hoje && d <= em60dias
+  })
+  const orcTotal = list.reduce((s, e) => s + (parseFloat(e.valor_estimado) || 0), 0)
+
+  document.getElementById('kpi-total').textContent = list.length
+  document.getElementById('kpi-total-sub').textContent = `no ano de ${anoVisaoGeral}`
+  document.getElementById('kpi-ativas').textContent = ativas.length
+  const statusCount = {}
+  ativas.forEach(e => statusCount[e.status] = (statusCount[e.status]||0)+1)
+  document.getElementById('kpi-ativas-sub').textContent = Object.entries(statusCount).map(([k,v])=>`${v} ${k}`).join(' · ')
+  const isSec = currentProfile?.perfil === 'secretaria'
+  if (isSec) {
+    document.getElementById('kpi-orcamento').textContent = 'Restrito'
+    document.getElementById('kpi-orcamento').style.fontSize = '18px'
+    document.getElementById('kpi-orcamento-sub').textContent = 'Acesso administrativo necessário'
+  } else {
+    document.getElementById('kpi-orcamento').textContent = orcTotal ? fmtMoney(orcTotal) : '—'
+    document.getElementById('kpi-orcamento').style.fontSize = ''
+    document.getElementById('kpi-orcamento-sub').textContent = orcTotal ? `em ${list.filter(e=>e.valor_estimado).length} exposições` : 'Sem valores cadastrados'
+  }
+  document.getElementById('kpi-proximas').textContent = proximas.length
+  document.getElementById('kpi-proximas-sub').textContent = proximas.length ? proximas.slice(0,2).map(e=>e.titulo).join(', ') + (proximas.length > 2 ? '…' : '') : 'Nenhuma nos próximos 60 dias'
+  
+  renderDashboardCharts(list)
+}
+
+function renderDashboardCharts(list) {
+  const container = document.getElementById('cards-container')
+  const existingCharts = document.getElementById('dash-charts-section')
+  if (existingCharts) existingCharts.remove()
+
+  const chartSection = document.createElement('div')
+  chartSection.id = 'dash-charts-section'
+  chartSection.className = 'dash-row'
+  
+  // 1. Carga por Assistente (G.E.A.V.T) - Top 6
+  const assistantCount = {}
+  list.forEach(e => {
+    (e.exposicao_assistentes || []).forEach(a => {
+      const u = allUsuarios.find(user => user.id === a.usuario_id)
+      const nome = u ? u.nome : 'Outros'
+      assistantCount[nome] = (assistantCount[nome]||0) + 1
+    })
+  })
+  const sortedAssistants = Object.entries(assistantCount).sort((a,b) => b[1] - a[1]).slice(0, 6)
+  const maxAst = sortedAssistants[0]?.[1] || 1
+  
+  const assistantHtml = sortedAssistants.map(([nome, count]) => `
+    <div class="simple-bar-row">
+      <div class="simple-bar-label" title="${nome}">${nome}</div>
+      <div class="simple-bar-bg"><div class="simple-bar-fill" style="width:${(count/maxAst)*100}%"></div></div>
+      <div class="simple-bar-value">${count}</div>
+    </div>
+  `).join('')
+
+  // 2. Equilíbrio de Rede (Capital vs Interior)
+  const regionCount = { 'Capital': 0, 'Interior': 0 }
+  list.forEach(e => {
+    if (e.capital_interior === 'Capital') regionCount['Capital']++
+    else regionCount['Interior']++ // Considera o restante como Interior, conforme regra de negócio
+  })
+  const totalReg = list.length || 1
+  const regionHtml = Object.entries(regionCount).map(([reg, count]) => `
+    <div class="simple-bar-row">
+      <div class="simple-bar-label">${reg}</div>
+      <div class="simple-bar-bg"><div class="simple-bar-fill" style="width:${(count/totalReg)*100}%; background: ${reg==='Capital'?'#1e293b':'#b45309'}"></div></div>
+      <div class="simple-bar-value">${Math.round((count/totalReg)*100)}%</div>
+    </div>
+  `).join('')
+
+  chartSection.innerHTML = `
+    <div class="dash-card">
+      <div class="dash-title">Carga G.E.A.V.T <span style="font-weight:400; font-size:10px; opacity:0.6">Projetos por Pessoa</span></div>
+      ${assistantHtml || '<p class="vazio">Sem dados registrados</p>'}
+    </div>
+    <div class="dash-card">
+      <div class="dash-title">Equilíbrio de Rede <span style="font-weight:400; font-size:10px; opacity:0.6">Capital vs Interior</span></div>
+      <div style="margin-top:20px">${regionHtml}</div>
+      <div style="margin-top:20px; font-size:11px; color:var(--muted); line-height:1.4">
+        Total de <strong>${list.length}</strong> exposições ativas no portfólio.
+      </div>
+    </div>
+  `
+  container.parentNode.insertBefore(chartSection, container)
+}
+
+function sc(s) { return 's-' + (s||'').replace(/\s/g,'_') }
+function bc(s) { return 'bar-' + (s||'').replace(/\s/g,'_') }
+
+function getEquipeCardText(e) {
+  if (!e.exposicao_colaboradores || !e.exposicao_colaboradores.length) return ``;
+  const names = [];
+  ['Curador(a)', 'Produção', 'Arquiteto(a)', 'Educativo'].forEach(papel => {
+    e.exposicao_colaboradores.filter(x => x.papel === papel && x.colaboradores).forEach(x => {
+      if(names.length < 3 && !names.includes(x.colaboradores.nome)) names.push(x.colaboradores.nome);
+    });
+  });
+  if (names.length) return '👥 ' + names.join(', ') + (e.exposicao_colaboradores.length > names.length ? '...' : '');
+  return ``;
+}
+
+function getAssistenteNomes(e) {
+  if (!e.exposicao_assistentes || !e.exposicao_assistentes.length) return '—';
+  const nomesArr = e.exposicao_assistentes.map(x => {
+     const u = allUsuarios.find(user => user.id === x.usuario_id);
+     return u ? u.nome : null;
+  }).filter(Boolean);
+  return nomesArr.length ? nomesArr.join(', ') : '—';
+}
+
+function getStatusPct(status) {
+  const map = { 'Em tratativas': 5, 'Em aprovação': 15, 'Em produção': 55, 'Aberta': 90, 'Encerrada': 100, 'Cancelada': 0, 'Suspensa': 0, 'Postergada': 0 }
+  return map[status] ?? 0
+}
+
+function renderCards(list) {
+  const c = document.getElementById('cards-container')
+  if (!list.length) {
+    c.innerHTML = `<div class="empty-state"><p>Nenhuma exposição encontrada <a href="javascript:openExpModal()">Adicionar a primeira</a></p></div>`
+    return
+  }
+  c.innerHTML = list.map(e => {
+    const pct = getStatusPct(e.status)
+    return `
+    <div class="card" onclick="openPainel('${e.id}')">
+      <div class="card-status-bar ${bc(e.status)}"></div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 6px;">
+        <div class="card-unidade" style="margin-bottom:0; max-width:60%;">${e.unidades?.nome || 'Sem unidade'}</div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
+          ${e.parceria ? `<div style="font-size:10px; background:#f4f4f5; color:#52525b; padding:2px 6px; border-radius:4px; border:1px solid #e4e4e7">🤝 ${e.parceria}</div>` : ''}
+          <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end">
+            ${[ e.is_internacional ? 'Internacional' : null, e.is_itinerancia ? 'Itinerância' : null, e.is_inedita ? 'Inédita' : null, e.is_monografica ? 'Monográfica' : null ]
+              .filter(Boolean).map(flag => `<span style="font-size:9px; background:var(--bg); color:var(--muted); padding:2px 5px; border-radius:10px; font-weight:600; text-transform:uppercase; border:1px solid var(--border)">${flag}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card-titulo">${e.titulo}</div>
+      <div class="card-meta">
+        <span class="tag ${sc(e.status)}">${e.status||'—'}</span>
+        ${e.semestre ? `<span class="tag">${e.semestre}</span>` : ''}
+        ${e.capital_interior ? `<span class="tag">${e.capital_interior}</span>` : ''}
+      </div>
+      <div class="card-datas">📅 ${e.data_abertura ? fmtDate(e.data_abertura) : (e.periodo_previsto||'—')}${e.data_encerramento ? ' → '+fmtDate(e.data_encerramento) : ''}</div>
+      <div class="card-info" style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600">👤 Assistentes: ${getAssistenteNomes(e)}</div>
+      ${getEquipeCardText(e) ? `<div class="card-info" style="margin-top:2px;font-size:11px;opacity:0.8">${getEquipeCardText(e)}</div>` : ''}
+      ${pct > 0 ? `<div class="card-progress"><div class="card-progress-bar"><div class="card-progress-fill" style="width:${pct}%"></div></div><div class="card-progress-label">${pct}% concluído</div></div>` : ''}
+    </div>`
+  }).join('')
+}
+
+  ['search','filter-unidade','filter-assistente','filter-semestre'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.addEventListener('input', () => {
+      const s  = document.getElementById('search').value.toLowerCase()
+      const u  = document.getElementById('filter-unidade').value
+      const a  = document.getElementById('filter-assistente').value
+      const sm = document.getElementById('filter-semestre').value
+      
+      const stArr = Array.from(document.querySelectorAll('.status-chk:checked')).map(c => c.value)
+
+      renderCards(allExposicoes.filter(e =>
+        (!s  || e.titulo.toLowerCase().includes(s)) &&
+        (stArr.length === 0 || stArr.includes(e.status)) && 
+        (!u  || e.unidade_id === u) &&
+        (!a  || (e.exposicao_assistentes||[]).some(x => x.usuario_id === a)) &&
+        (!sm || e.semestre === sm)
+      ))
+    })
+  })
+
+// Listeners Unidades
+document.getElementById('btn-nova-unidade').addEventListener('click', () => openUnitModal())
+document.getElementById('modal-unit-close').addEventListener('click', closeUnitModal)
+document.getElementById('modal-unit-cancel').addEventListener('click', closeUnitModal)
+document.getElementById('modal-unit-save').addEventListener('click', saveUnidade)
+document.getElementById('modal-unit-delete').addEventListener('click', deleteUnidade)
+document.getElementById('btn-add-espaco').addEventListener('click', addUnitSpace)
+document.getElementById('search-unidade').addEventListener('input', loadUnidades)
+
+document.getElementById('btn-nova-exposicao').addEventListener('click', () => {
+  openExpModal()
+  updateEspacoDropdown(null)
+})
+document.getElementById('modal-exp-close').addEventListener('click', closeExpModal)
+document.getElementById('modal-exp-cancel').addEventListener('click', closeExpModal)
+document.getElementById('modal-exp-save').addEventListener('click', saveExposicao)
+document.getElementById('modal-exp-delete').addEventListener('click', deleteExposicao)
+
+const PAPEIS = ['Curador(a)','Produção','Arquiteto(a)','Designer','Iluminação','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Transporte','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Comunicação Visual']
+
+async function openExpModal(id = null) {
+  try {
+    editingExpId = id
+    document.getElementById('modal-exp-title').textContent = id ? 'Editar Exposição' : 'Nova Exposição'
+    document.getElementById('modal-exp-delete').style.display = id ? 'block' : 'none'
+    const fields = {
+      'titulo':'','unidade':'','status':'Em tratativas','semestre':'',
+      'abertura':'','encerramento':'','periodo':'','capital':'',
+      'ano': anoVisaoGeral,'valor':'','valor-pre-producao':'',
+      'cache-curadoria':'', 'valor-cenotecnia':'',
+      'cont-producao':'', 'cont-arquitetura':'', 'cont-educativo':'', 'acessibilidade':'',
+      'sinopse':'','notas':'','links':'','historico':'',
+      'visitas-expo-meta':'','visitas-expo-estat':'','visitas-med-meta':'','visitas-med-estat':'',
+      'edu-estagiarios':'','edu-facilitador1':'','edu-facilitador2':'','edu-educador-social':'','edu-asa':'', 'parceria': '', 'imagem': ''
+    }
+    editingEquipe = {}
+    PAPEIS.forEach(p => editingEquipe[p] = [])
+    document.querySelectorAll('.chk-assistente').forEach(c => c.checked = false)
+
+    if (id) {
+      const e = await getExposicao(id)
+      if (e) {
+        Object.assign(fields, {
+          'titulo': e.titulo, 'unidade': e.unidade_id||'',
+          'status': e.status, 'semestre': e.semestre||'', 'abertura': e.data_abertura||'',
+          'encerramento': e.data_encerramento||'', 'periodo': e.periodo_previsto||'',
+          'capital': e.capital_interior||'', 'ano': e.ano, 'valor': e.valor_estimado||'',
+          'valor-pre-producao': e.valor_pre_producao||'',
+          'cache-curadoria': e.cache_curadoria||'', 'valor-cenotecnia': e.valor_cenotecnia||'',
+          'cont-producao': e.contrato_producao||'', 'cont-arquitetura': e.contrato_arquitetura||'',
+          'cont-educativo': e.contrato_educativo||'', 'acessibilidade': e.acessibilidade||'',
+          'sinopse': e.sinopse||'', 'notas': e.notas_adicionais||'',
+          'links': e.referencias_links||'', 'historico': e.historico_abertura||'',
+          'visitas-expo-meta': e.visitas_expo_meta||'',
+          'visitas-expo-estat': e.visitas_expo_estatistico||'',
+          'visitas-med-meta': e.visitas_mediadas_meta||'',
+          'visitas-med-estat': e.visitas_mediadas_estatistico||'',
+          'edu-estagiarios': e.edu_estagiarios||'',
+          'edu-facilitador1': e.edu_facilitador1||'',
+          'edu-facilitador2': e.edu_facilitador2||'',
+          'edu-educador-social': e.edu_educador_social||'',
+          'edu-asa': e.edu_asa||'',
+          'parceria': e.parceria||'',
+          'imagem': e.imagem_url||''
+        })
+        
+        document.getElementById('f-is-internacional').checked = e.is_internacional || false
+        document.getElementById('f-is-itinerancia').checked = e.is_itinerancia || false
+        document.getElementById('f-is-inedita').checked = e.is_inedita || false
+        document.getElementById('f-is-monografica').checked = e.is_monografica || false
+
+        if(typeof updateEspacoDropdown === 'function') updateEspacoDropdown(e.unidade_id, e.espaco_id)
+        if (e.exposicao_assistentes) {
+           e.exposicao_assistentes.forEach(a => {
+               const cb = document.getElementById('chk-ast-' + a.usuario_id);
+               if (cb) cb.checked = true;
+           });
+        }
+        const { data: colabs } = await db.from('exposicao_colaboradores').select('papel, colaborador_id, colaboradores(nome)').eq('exposicao_id', id)
+        if (colabs) colabs.forEach(c => {
+          if (!editingEquipe[c.papel]) editingEquipe[c.papel] = []
+          editingEquipe[c.papel].push({ id: c.colaborador_id, nome: c.colaboradores?.nome })
+        })
+      }
+    } else {
+      if(typeof updateEspacoDropdown === 'function') updateEspacoDropdown(null)
+      document.getElementById('f-is-internacional').checked = false
+      document.getElementById('f-is-itinerancia').checked = false
+      document.getElementById('f-is-inedita').checked = false
+      document.getElementById('f-is-monografica').checked = false
+    }
+    
+    Object.keys(fields).forEach(k => {
+      const el = document.getElementById('f-' + k)
+      if (el) {
+        el.value = fields[k]
+        // Reset masks
+        el.placeholder = ''
+        el.style.background = ''
+        el.disabled = false
+      }
+    })
+
+    const isSec = currentProfile?.perfil === 'secretaria'
+    const isCons = currentProfile?.perfil === 'consultor'
+    
+    // Máscara financeira para Secretaria
+    if (isSec) {
+      const finFields = ['valor', 'cache-curadoria', 'valor-cenotecnia', 'cont-producao', 'cont-arquitetura', 'cont-educativo', 'acessibilidade']
+      finFields.forEach(f => {
+        const el = document.getElementById('f-' + f)
+        if (el) {
+          el.value = ''
+          el.placeholder = '🔒 Acesso Restrito'
+          el.style.background = '#f9fafb'
+          el.disabled = true
+        }
+      })
+    }
+
+    // Travas para Consultor
+    if (isCons) {
+      document.getElementById('modal-exp-save').style.display = 'none'
+      document.getElementById('modal-exp-delete').style.display = 'none'
+      document.getElementById('btn-gerar-cron').style.display = 'none'
+    } else {
+      document.getElementById('modal-exp-save').style.display = 'block'
+      document.getElementById('modal-exp-delete').style.display = id ? 'block' : 'none'
+    }
+
+    renderEquipeEditor()
+    document.getElementById('modal-exposicao').classList.add('open')
+  } catch (err) {
+    console.error('Erro ao abrir modal:', err)
+    showToast('Erro ao carregar modal de edição', true)
+  }
+}
+
+function closeExpModal() { document.getElementById('modal-exposicao').classList.remove('open'); editingExpId = null; document.querySelectorAll('.equipe-dropdown').forEach(d => d.remove()) }
+
+async function saveExposicao() {
+  const g = id => document.getElementById(id).value
+  const titulo = g('f-titulo').trim()
+  if (!titulo) { showToast('Informe o título', true); return }
+  
+  const assistentesCheckeds = Array.from(document.querySelectorAll('.chk-assistente:checked')).map(c => c.value);
+  const gNum = id => { const v = document.getElementById(id).value; return v ? parseFloat(v) : null }
+  const gInt = id => { const v = document.getElementById(id).value; return v ? parseInt(v) : null }
+
+  const payload = {
+    titulo, 
+    unidade_id: g('f-unidade')||null,
+    espaco_id: g('f-espaco')||null,
+    status: g('f-status'), 
+    semestre: g('f-semestre')||null,
+    data_abertura: g('f-abertura')||null, 
+    data_encerramento: g('f-encerramento')||null,
+    periodo_previsto: g('f-periodo')||null, 
+    capital_interior: g('f-capital')||null,
+    ano: gInt('f-ano') || new Date().getFullYear(),
+    valor_estimado: gNum('f-valor'),
+    valor_pre_producao: gNum('f-valor-pre-producao'),
+    cache_curadoria: gNum('f-cache-curadoria'),
+    valor_cenotecnia: gNum('f-valor-cenotecnia'),
+    contrato_producao: g('f-cont-producao') || null,
+    contrato_arquitetura: g('f-cont-arquitetura') || null,
+    contrato_educativo: g('f-cont-educativo') || null,
+    acessibilidade: g('f-acessibilidade') || null,
+    sinopse: g('f-sinopse') || null,
+    notas_adicionais: g('f-notas') || null,
+    referencias_links: g('f-links') || null,
+    historico_abertura: g('f-historico') || null,
+    visitas_expo_meta: gInt('f-visitas-expo-meta'),
+    visitas_expo_estatistico: gInt('f-visitas-expo-estat'),
+    visitas_mediadas_meta: gInt('f-visitas-med-meta'),
+    visitas_mediadas_estatistico: gInt('f-visitas-med-estat'),
+    edu_estagiarios: gInt('f-edu-estagiarios'),
+    edu_facilitador1: gInt('f-edu-facilitador1'),
+    edu_facilitador2: gInt('f-edu-facilitador2'),
+    edu_educador_social: gInt('f-edu-educador-social'),
+    edu_asa: gInt('f-edu-asa'),
+    is_internacional: document.getElementById('f-is-internacional').checked,
+    is_itinerancia: document.getElementById('f-is-itinerancia').checked,
+    is_inedita: document.getElementById('f-is-inedita').checked,
+    is_monografica: document.getElementById('f-is-monografica').checked,
+    parceria: g('f-parceria') || null,
+    imagem_url: g('f-imagem') || null
+  }
+
+  // Se for Perfil Secretaria, não enviamos campos financeiros no update para não zerá-los
+  if (currentProfile?.perfil === 'secretaria' && editingExpId) {
+    ['valor_estimado', 'cache_curadoria', 'valor_cenotecnia', 'contrato_producao', 'contrato_arquitetura', 'contrato_educativo', 'acessibilidade'].forEach(k => delete payload[k])
+  }
+  let expId = editingExpId
+  if (editingExpId) {
+    const { error } = await db.from('exposicoes').update(payload).eq('id', editingExpId)
+    if (error) { showToast('Erro: ' + error.message, true); return }
+  } else {
+    // Para inserção, capturamos os dados retornados para obter o ID gerado
+    const { data, error } = await db.from('exposicoes').insert(payload).select('id').single()
+    if (error) { 
+      console.error('Erro no insert:', error)
+      showToast('Erro ao criar: ' + error.message, true)
+      return 
+    }
+    if (!data) {
+      showToast('Erro: O banco não retornou o ID da nova exposição.', true)
+      return
+    }
+    expId = data.id
+  }
+  // Salvar assistentes
+  await db.from('exposicao_assistentes').delete().eq('exposicao_id', expId);
+  if (assistentesCheckeds.length > 0) {
+      await db.from('exposicao_assistentes').insert(assistentesCheckeds.map(aid => ({ exposicao_id: expId, usuario_id: aid })));
+  }
+
+  // Salvar equipe: apagar vínculos antigos e reinserir
+  await db.from('exposicao_colaboradores').delete().eq('exposicao_id', expId)
+  const toInsert = []
+  PAPEIS.forEach(papel => {
+    (editingEquipe[papel] || []).forEach(c => {
+      toInsert.push({ exposicao_id: expId, colaborador_id: c.id, papel })
+    })
+  })
+  if (toInsert.length) await db.from('exposicao_colaboradores').insert(toInsert)
+  closeExpModal()
+  const acao = editingExpId ? 'editou_exposicao' : 'criou_exposicao'
+  const detalhe = editingExpId ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
+  registrarLog(acao, detalhe, expId)
+  showToast(editingExpId ? 'Exposição atualizada!' : 'Exposição criada!')
+  await loadExposicoes()
+}
+
+async function deleteExposicao() {
+  if (!editingExpId || !confirm('Excluir esta exposição?')) return
+  // Remover registros dependentes antes da exposição
+  await db.from('exposicao_assistentes').delete().eq('exposicao_id', editingExpId)
+  await db.from('exposicao_colaboradores').delete().eq('exposicao_id', editingExpId)
+  await db.from('tarefas').delete().eq('exposicao_id', editingExpId)
+  const exTitulo = allExposicoes.find(x => x.id === editingExpId)?.titulo || ''
+  const { error } = await db.from('exposicoes').delete().eq('id', editingExpId)
+  if (error) { showToast('Erro ao excluir: ' + error.message, true); return }
+  registrarLog('excluiu_exposicao', `Excluiu a exposição "${exTitulo}"`, editingExpId)
+  closeExpModal(); showToast('Exposição excluída'); await loadExposicoes()
+}
+
+async function loadUnidades() {
+  const search = document.getElementById('search-unidade').value.toLowerCase()
+  const [{ data: unidades, error }, { data: todasExpos }] = await Promise.all([
+    db.from('unidades').select('*').order('nome'),
+    db.from('exposicoes').select('*').order('data_abertura')
+  ])
+  if (error) { console.error(error); return }
+  allUnidades = unidades || []
+  const filtered = allUnidades.filter(u => !search || u.nome.toLowerCase().includes(search))
+  const container = document.getElementById('unidades-container')
+  if (!filtered.length) { container.innerHTML = `<div class="empty-state"><p>Nenhuma unidade encontrada</p></div>`; return }
+  
+  const today = new Date(); today.setHours(0,0,0,0)
+  
+  container.innerHTML = `<div class="unidade-grid">` + filtered.map(u => {
+    const unitExpos = (todasExpos || []).filter(e => e.unidade_id === u.id)
+    const espacos = allEspacos.filter(s => s.unidade_id === u.id)
+    
+    // Calcular visitação total (ano atual)
+    const visitacaoTotal = unitExpos.filter(e => e.ano === today.getFullYear()).reduce((s,e) => s + (e.visitas_expo_estatistico||0) + (e.visitas_mediadas_estatistico||0), 0)
+    
+    // Determinar atual e próxima
+    const atual = unitExpos.find(e => e.data_abertura && e.data_encerramento && new Date(e.data_abertura+'T12:00:00') <= today && new Date(e.data_encerramento+'T12:00:00') >= today)
+    const proxima = unitExpos.filter(e => e.data_abertura && new Date(e.data_abertura+'T12:00:00') > today).sort((a,b) => new Date(a.data_abertura) - new Date(b.data_abertura))[0]
+    
+    return `
+      <div class="unidade-card" onclick="openUnitModal('${u.id}')">
+        <div>
+          <div class="unidade-card-type">${u.capital_interior || 'Unidade'}</div>
+          <div class="unidade-card-name">${u.nome}</div>
+        </div>
+        
+        <div class="unidade-expos-info">
+          <div class="unidade-expo-row">
+            <span class="unidade-expo-label">Em cartaz</span>
+            <span class="unidade-expo-title">${atual ? atual.titulo : '<span class="unidade-expo-empty">Nenhuma exposição ativa</span>'}</span>
+          </div>
+          <div class="unidade-expo-row">
+            <span class="unidade-expo-label">Próxima abertura</span>
+            <span class="unidade-expo-title">${proxima ? proxima.titulo : '<span class="unidade-expo-empty">Não agendada</span>'}</span>
+          </div>
+        </div>
+        
+        <div class="unidade-card-stats">
+          <div class="unidade-stat-item">
+            <div class="unidade-stat-value">${espacos.length}</div>
+            <div class="unidade-stat-label">Espaços</div>
+          </div>
+          <div class="unidade-stat-item">
+            <div class="unidade-stat-value">${visitacaoTotal.toLocaleString('pt-BR')}</div>
+            <div class="unidade-stat-label">Público ${today.getFullYear()}</div>
+          </div>
+        </div>
+      </div>`}).join('') + `</div>`
+}
+
+function openUnitModal(id = null) {
+  editingUnitId = id
+  document.querySelectorAll('.unit-tab-content').forEach(c => c.classList.remove('active'))
+  document.getElementById('unit-tab-tecnica').classList.add('active')
+  document.querySelectorAll('[data-unit-tab]').forEach(t => {
+    t.classList.remove('active')
+    if(t.dataset.unitTab === 'tecnica') t.classList.add('active')
+  })
+
+  const title = id ? 'Editar Unidade' : 'Nova Unidade'
+  document.getElementById('modal-unit-title').textContent = title
+  document.getElementById('modal-unit-delete').style.display = id ? 'block' : 'none'
+  
+  const fields = ['nome','capital','gerente','gerente-adj','coord-prog','super-art','tec-artes','tec-edu']
+  fields.forEach(f => document.getElementById('fun-' + f).value = '')
+  editingUnitSpaces = []
+  editingUnitRepo = []
+
+  if (id) {
+    const u = allUnidades.find(x => x.id == id)
+    if (u) {
+      document.getElementById('fun-nome').value = u.nome || ''
+      document.getElementById('fun-capital').value = u.capital_interior || ''
+      document.getElementById('fun-gerente').value = u.gerente || ''
+      document.getElementById('fun-gerente-adj').value = u.gerente_adjunto || ''
+      document.getElementById('fun-coord-prog').value = u.coordenador_programacao || ''
+      document.getElementById('fun-super-art').value = u.supervisor_artistico || ''
+      document.getElementById('fun-tec-artes').value = u.tecnico_artes_visuais || ''
+      document.getElementById('fun-tec-edu').value = u.tecnico_educativo || ''
+      editingUnitSpaces = allEspacos.filter(s => s.unidade_id === id).map(s => ({ ...s }))
+      editingUnitRepo = u.repositorio || []
+      renderUnitVisitacao(id)
+    }
+  }
+  const isCons = currentProfile?.perfil === 'consultor'
+  if (isCons) {
+    document.getElementById('modal-unit-save').style.display = 'none'
+    document.getElementById('modal-unit-delete').style.display = 'none'
+    document.getElementById('btn-add-espaco').style.display = 'none'
+    document.getElementById('btn-add-repo').style.display = 'none'
+    document.querySelectorAll('.btn-remove-espaco').forEach(b => b.style.display = 'none')
+    document.querySelectorAll('.btn-remove-repo').forEach(b => b.style.display = 'none')
+  } else {
+    document.getElementById('modal-unit-save').style.display = 'block'
+    document.getElementById('modal-unit-delete').style.display = id ? 'block' : 'none'
+    document.getElementById('btn-add-espaco').style.display = 'block'
+    document.getElementById('btn-add-repo').style.display = 'block'
+  }
+
+  renderUnitSpaces()
+  renderUnitRepo()
+  document.getElementById('modal-unidade').classList.add('open')
+}
+
+function renderUnitSpaces() {
+  const container = document.getElementById('fun-espacos-lista')
+  if (!container) return
+  if (!editingUnitSpaces.length) { 
+    container.innerHTML = '<div style="padding:15px; color:var(--muted); font-size:12px; text-align:center">Nenhum espaço cadastrado.</div>'; 
+    return 
+  }
+  const isCons = currentProfile?.perfil === 'consultor'
+  container.innerHTML = editingUnitSpaces.map((s, idx) => `
+    <div class="espaco-item">
+      <div class="espaco-item-info"><strong>${s.nome}</strong> <span>${s.metragem} m²</span></div>
+      ${isCons ? '' : `<button class="btn-remove-espaco" onclick="removeUnitSpace(${idx})">×</button>`}
+    </div>`).join('')
+}
+
+function addUnitSpace() {
+  const nome = document.getElementById('new-espaco-nome').value.trim()
+  const metragem = document.getElementById('new-espaco-metragem').value
+  if (!nome) { showToast('Informe o nome do espaço', true); return }
+  editingUnitSpaces.push({ nome, metragem: parseFloat(metragem) || 0 })
+  document.getElementById('new-espaco-nome').value = ''
+  document.getElementById('new-espaco-metragem').value = ''
+  renderUnitSpaces()
+}
+
+function removeUnitSpace(idx) {
+  editingUnitSpaces.splice(idx, 1)
+  renderUnitSpaces()
+}
+
+async function saveUnidade() {
+  const getV = id => document.getElementById(id).value
+  const nome = getV('fun-nome').trim()
+  if (!nome) { showToast('Informe o nome da unidade', true); return }
+  
+  const payload = {
+    nome,
+    capital_interior: getV('fun-capital') || null,
+    gerente: getV('fun-gerente') || null,
+    gerente_adjunto: getV('fun-gerente-adj') || null,
+    coordenador_programacao: getV('fun-coord-prog') || null,
+    supervisor_artistico: getV('fun-super-art') || null,
+    tecnico_artes_visuais: getV('fun-tec-artes') || null,
+    tecnico_educativo: getV('fun-tec-edu') || null,
+    repositorio: editingUnitRepo
+  }
+  
+  let unitId = editingUnitId
+  if (editingUnitId) {
+    const { error } = await db.from('unidades').update(payload).eq('id', editingUnitId)
+    if (error) { showToast('Erro ao salvar: ' + error.message, true); return }
+  } else {
+    const { data, error } = await db.from('unidades').insert(payload).select().single()
+    if (error) { showToast('Erro ao criar: ' + error.message, true); return }
+    unitId = data.id
+  }
+  
+  // Salvar espaços: remover antigos e inserir novos
+  const { error: delErr } = await db.from('unidade_espacos').delete().eq('unidade_id', unitId)
+  if (delErr) { console.error('Erro ao limpar espaços:', delErr) }
+
+  if (editingUnitSpaces.length > 0) {
+    const spacesToInsert = editingUnitSpaces.map(s => {
+      const { id, created_at, ...cleanSpace } = s // Remover campos internos do banco
+      return { ...cleanSpace, unidade_id: unitId }
+    })
+    const { error: insErr } = await db.from('unidade_espacos').insert(spacesToInsert)
+    if (insErr) { showToast('Erro ao salvar espaços: ' + insErr.message, true); return }
+  }
+  
+  closeUnitModal()
+  registrarLog(editingUnitId ? 'editou_unidade' : 'criou_unidade', `${editingUnitId ? 'Editou' : 'Criou'} a unidade "${nome}"`)
+  showToast('Unidade salva!')
+  await loadBaseData()
+  loadUnidades()
+}
+
+async function deleteUnidade() {
+  if (!editingUnitId || !confirm('Excluir esta unidade? Isso removerá todos os espaços vinculados.')) return
+  const uNome = allUnidades.find(x => x.id === editingUnitId)?.nome || ''
+  const { error } = await db.from('unidades').delete().eq('id', editingUnitId)
+  if (error) { showToast('Erro ao excluir: ' + error.message, true); return }
+  registrarLog('excluiu_unidade', `Excluiu a unidade "${uNome}"`)
+  closeUnitModal(); showToast('Unidade excluída'); await loadBaseData(); loadUnidades()
+}
+
+function closeUnitModal() { document.getElementById('modal-unidade').classList.remove('open'); editingUnitId = null }
+
+async function renderUnitVisitacao(unitId) {
+  const { data: expos } = await db.from('exposicoes').select('*').eq('unidade_id', unitId).order('ano', { ascending: false })
+  const resumoDiv = document.getElementById('unit-visitacao-resumo')
+  const historicoDiv = document.getElementById('unit-historico-lista')
+  
+  if (!expos || !expos.length) {
+    if(resumoDiv) resumoDiv.innerHTML = '<div style="color:var(--muted)">Sem dados de visitação</div>'
+    if(historicoDiv) historicoDiv.innerHTML = '<div style="color:var(--muted)">Nenhuma exposição anterior</div>'
+    return
+  }
+  
+  const porAno = {}
+  expos.forEach(e => {
+    if (!porAno[e.ano]) porAno[e.ano] = 0
+    porAno[e.ano] += (e.visitas_expo_estatistico || 0) + (e.visitas_mediadas_estatistico || 0)
+  })
+  
+  if(resumoDiv) resumoDiv.innerHTML = Object.entries(porAno).map(([ano, total]) => `
+    <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border)">
+      <span><strong>${ano}</strong></span>
+      <span>${total.toLocaleString('pt-BR')} visitantes</span>
+    </div>`).join('')
+    
+  if(historicoDiv) historicoDiv.innerHTML = expos.map(e => `
+    <div style="padding:6px 0; border-bottom:1px dashed var(--border); opacity:0.8">
+      <strong>${e.ano}</strong> - ${e.titulo} (${(e.visitas_expo_estatistico||0) + (e.visitas_mediadas_estatistico||0)} visitantes)
+    </div>`).join('')
+}
+
+function renderUnitRepo() {
+  const list = document.getElementById('fun-repo-lista')
+  if(!list) return
+  const isCons = currentProfile?.perfil === 'consultor'
+  list.innerHTML = editingUnitRepo.map((r, i) => `
+    <div class="repo-item" style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid var(--border)">
+      <a href="${r.url}" target="_blank" class="repo-item-link" style="color:var(--accent); text-decoration:none">📄 ${r.titulo}</a>
+      ${isCons ? '' : `<button class="btn-remove-espaco btn-remove-repo" onclick="removeRepoItem(${i})" style="padding:2px 8px; font-size:16px">&times;</button>`}
+    </div>`).join('')
+}
+
+function removeRepoItem(i) { editingUnitRepo.splice(i, 1); renderUnitRepo() }
+
+// Adicionar listeners do repositório se não existirem
+if(!window.repoListenersAdded) {
+  document.addEventListener('click', e => {
+    if(e.target.id === 'btn-add-repo') {
+      const tit = document.getElementById('new-repo-titulo').value.trim()
+      const url = document.getElementById('new-repo-url').value.trim()
+      if (!tit || !url) return
+      editingUnitRepo.push({ titulo: tit, url })
+      document.getElementById('new-repo-titulo').value = ''
+      document.getElementById('new-repo-url').value = ''
+      renderUnitRepo()
+    }
+  })
+  window.repoListenersAdded = true
+}
+
+// Tabs logic simplificada
+document.addEventListener('click', e => {
+  if (e.target.dataset.unitTab) {
+    const tab = e.target.dataset.unitTab
+    document.querySelectorAll('[data-unit-tab]').forEach(t => t.classList.remove('active'))
+    e.target.classList.add('active')
+    document.querySelectorAll('.unit-tab-content').forEach(c => c.classList.remove('active'))
+    const target = document.getElementById('unit-tab-' + tab)
+    if(target) target.classList.add('active')
+  }
+})
+
+async function loadTimeline() {
+  const container = document.getElementById('timeline-container')
+  if (!container) return
+  container.innerHTML = '<div class="loading">Carregando timeline...</div>'
+  
+  const jan1 = `${anoVisaoGeral}-01-01`
+  const dez31 = `${anoVisaoGeral}-12-31`
+  const queryStr = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+  
+  // Buscar exposições que nasceram no ano OU que se sobrepõem a esse ano
+  let q = db.from('exposicoes')
+    .select(queryStr)
+    .or(`ano.eq.${anoVisaoGeral},and(data_abertura.lte.${dez31},data_encerramento.gte.${jan1})`)
+    .order('data_abertura')
+
+  if (anoVisaoGeral <= 2025) {
+    q = q.in('status', ['Aberta', 'Encerrada'])
+  } else {
+    q = q.in('status', ['Aberta', 'Encerrada', 'Em tratativas', 'Em aprovação', 'Em produção'])
+  }
+  
+  const { data, error } = await q
+  if (error) { console.error(error); return }
+  timelineExposicoes = data || []
+  renderTimeline(timelineExposicoes)
+}
+
+function renderTimeline(exposicoes) {
+  const container = document.getElementById('timeline-container')
+  const mesesCurto = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  
+  let html = `
+    <div class="timeline-header">
+      <div class="timeline-header-cell" style="text-align:left">Unidade / Espaço</div>
+      ${mesesCurto.map(m => `<div class="timeline-header-cell">${m}</div>`).join('')}
+    </div>`
+
+  // Agrupar unidades e seus espaços
+  allUnidades.forEach(u => {
+    const espacos = allEspacos.filter(s => s.unidade_id === u.id)
+    if (!espacos.length) {
+      html += renderTimelineRow(u.nome, null, exposicoes.filter(e => e.unidade_id === u.id))
+    } else {
+      espacos.forEach(s => {
+        html += renderTimelineRow(u.nome, s.nome, exposicoes.filter(e => e.unidade_id === u.id && e.espaco_id === s.id))
+      })
+      const semEspaco = exposicoes.filter(e => e.unidade_id === u.id && !e.espaco_id)
+      if(semEspaco.length) html += renderTimelineRow(u.nome, 'Não definido', semEspaco)
+    }
+  })
+
+  container.innerHTML = html
+}
+
+function renderTimelineRow(unidadeNome, espacoNome, lista) {
+  const meses = [0,1,2,3,4,5,6,7,8,9,10,11]
+  let barsHtml = ''
+  const viewYear = anoVisaoGeral
+  
+  lista.forEach(e => {
+    let start, end, isEstimated = false
+    
+    if (e.data_abertura) {
+      start = new Date(e.data_abertura + 'T12:00:00')
+      end = e.data_encerramento ? new Date(e.data_encerramento + 'T12:00:00') : new Date(start.getTime() + 30*24*60*60*1000)
+    } else if (e.periodo_previsto) {
+      const previsao = getMesesDoTexto(e.periodo_previsto)
+      if (previsao) {
+        isEstimated = true
+        start = new Date(viewYear, previsao.inicio, 1, 12, 0, 0)
+        end = new Date(viewYear, previsao.fim, 28, 12, 0, 0)
+      } else {
+        return // Ocultar se não encontrar nenhum mês reconhecido
+      }
+    } else {
+      return // Sem data e sem previsão reconhecível
+    }
+    
+    if (start.getFullYear() < viewYear) start = new Date(viewYear, 0, 1, 12, 0, 0)
+    if (end.getFullYear() > viewYear) end = new Date(viewYear, 11, 31, 12, 0, 0)
+    if (start > end) return
+
+    const startMonth = start.getMonth() + (start.getDate()/31)
+    const endMonth = end.getMonth() + (end.getDate()/31)
+    const duration = Math.max(0.2, endMonth - startMonth)
+    
+    const left = (startMonth / 12) * 100
+    const width = (duration / 12) * 100
+    
+    const labelData = isEstimated ? (e.periodo_previsto) : `${fmtDate(e.data_abertura)} — ${fmtDate(e.data_encerramento)}`
+
+    barsHtml += `
+      <div class="timeline-bar ${bc(e.status)} ${isEstimated ? 'estimated' : ''}" 
+           style="left:calc(${left}%); width:calc(${width}%);"
+           onclick="openPainel('${e.id}')">
+        <span style="font-weight:700">${e.titulo}</span>
+        <span class="timeline-bar-dates">${labelData}</span>
+      </div>`
+  })
+
+  return `
+    <div class="timeline-row">
+      <div class="timeline-unit-cell">
+        <div class="timeline-unit-name">${unidadeNome}</div>
+        ${espacoNome ? `<div class="timeline-unit-space">${espacoNome}</div>` : ''}
+      </div>
+      ${meses.map(() => `<div class="timeline-month-cell"></div>`).join('')}
+      <div class="timeline-bar-container">${barsHtml}</div>
+    </div>`
+}
+
+
+function renderEquipeEditor() {
+  const container = document.getElementById('equipe-editor')
+  if (!container) return
+  
+  const chunks = PAPEIS.map(papel => {
+    const key = papel.replace(/\s/g,'_')
+    const membros = (editingEquipe[papel] || [])
+    const listaHtml = membros.map(m => `
+      <div class="equipe-membro-tag">
+        ${m.nome}
+        <span class="remove" onclick="removeEquipeMembro('${papel}','${m.id}')">&times;</span>
+      </div>`).join('')
+    
+    return `
+      <div class="equipe-papel-row">
+        <div class="equipe-papel-label">${papel}</div>
+        <div class="equipe-membros-list">${listaHtml}</div>
+        <div style="position:relative; margin-top:4px">
+          <input type="text" class="equipe-search-input" placeholder="Adicionar..." 
+                 id="search-equipe-${key}"
+                 oninput="filtrarEquipeDropdown(this, '${papel}')" 
+                 onblur="setTimeout(() => fecharDropdown('${papel}'), 200)">
+        </div>
+      </div>`
+  }).join('')
+
+  container.innerHTML = `<div class="equipe-grid">${chunks}</div>`
+}
+
+function filtrarEquipeDropdown(input, papel) {
+
+  const q = input.value.toLowerCase()
+  const jaVinculados = (editingEquipe[papel]||[]).map(c => c.id)
+  const filtrados = allColaboradores.filter(c =>
+    c.nome.toLowerCase().includes(q) && !jaVinculados.includes(c.id)
+  ).slice(0, 8)
+  const key = papel.replace(/\s/g,'_')
+  let dd = document.getElementById('dd-' + key)
+  if (!dd) {
+    dd = document.createElement('div')
+    dd.className = 'equipe-dropdown'
+    dd.id = 'dd-' + key
+    input.parentNode.appendChild(dd)
+  }
+  if (!filtrados.length) { dd.innerHTML = '<div class="equipe-dropdown-item" style="color:var(--muted)">Nenhum resultado</div>'; return }
+  dd.innerHTML = filtrados.map(c => `
+    <div class="equipe-dropdown-item" onmousedown="addEquipeMembro('${papel}','${c.id}','${c.nome.replace(/'/g,"\\'")}')">
+      ${c.nome} <small>${c.funcao||''}</small>
+    </div>`).join('')
+}
+
+function fecharDropdown(papel) {
+  const dd = document.getElementById('dd-' + papel.replace(/\s/g,'_'))
+  if (dd) dd.remove()
+}
+
+function addEquipeMembro(papel, id, nome) {
+  if (!editingEquipe[papel]) editingEquipe[papel] = []
+  if (editingEquipe[papel].find(c => c.id === id)) return
+  editingEquipe[papel].push({ id, nome })
+  renderEquipeEditor()
+  // Manter foco no campo do papel correto
+  setTimeout(() => {
+    const inp = document.getElementById('search-equipe-' + papel.replace(/\s/g,'_'))
+    if (inp) { inp.value = ''; inp.focus() }
+  }, 50)
+}
+
+function removeEquipeMembro(papel, id) {
+  if (!editingEquipe[papel]) return
+  editingEquipe[papel] = editingEquipe[papel].filter(c => c.id !== id)
+  renderEquipeEditor()
+}
+
+// COLABORADORES
+document.getElementById('btn-novo-colaborador').addEventListener('click', () => openColabModal())
+document.getElementById('modal-colab-close').addEventListener('click', closeColabModal)
+document.getElementById('modal-colab-cancel').addEventListener('click', closeColabModal)
+document.getElementById('modal-colab-save').addEventListener('click', saveColaborador)
+document.getElementById('modal-colab-delete').addEventListener('click', deleteColaborador)
+
+async function loadColaboradores() {
+  const search = document.getElementById('search-colab').value.toLowerCase()
+  const funcaoFiltro = document.getElementById('filter-funcao').value
+  let q = db.from('colaboradores').select('*').order('nome')
+  if (funcaoFiltro) q = q.contains('funcao', [funcaoFiltro])
+  const { data, error } = await q
+  if (error) { console.error('Colaboradores error:', error); return }
+  allColaboradores = data || []
+  const filtered = allColaboradores.filter(c =>
+    !search || c.nome.toLowerCase().includes(search) || (c.empresa||'').toLowerCase().includes(search)
+  )
+  const container = document.getElementById('colaboradores-container')
+  if (!filtered.length) { container.innerHTML = `<div class="empty-state"><p>Nenhum colaborador encontrado</p></div>`; return }
+
+  // Buscar participações de todos os colaboradores filtrados (inclui unidade)
+  const ids = filtered.map(c => c.id)
+  const { data: partsData } = await db.from('exposicao_colaboradores')
+    .select('colaborador_id, papel, exposicoes(id, titulo, ano, status, unidades(nome))')
+    .in('colaborador_id', ids)
+  const partsMap = {}
+  ;(partsData || []).forEach(p => {
+    if (!partsMap[p.colaborador_id]) partsMap[p.colaborador_id] = []
+    partsMap[p.colaborador_id].push(p)
+  })
+
+  const ATIVOS = ['Aberta','Em produção','Em aprovação','Em tratativas']
+  const alphaSort = (a, b) => (a.exposicoes?.titulo||'').localeCompare(b.exposicoes?.titulo||'', 'pt-BR')
+
+  container.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th style="width:200px">Nome</th><th style="width:160px">Funções</th><th>Projetos</th></tr></thead>
+      <tbody>${filtered.map(c => {
+        const funcArray = Array.isArray(c.funcao) ? c.funcao : (c.funcao ? [c.funcao] : [])
+        const funcoes = funcArray.map(f => `<span class="chip-funcao">${f}</span>`).join('')
+        const allParts = partsMap[c.id] || []
+
+        // Separar ativos (qualquer ano) e encerrados
+        const ativos = allParts
+          .filter(p => ATIVOS.includes(p.exposicoes?.status||''))
+          .sort(alphaSort)
+
+        const encerrados = allParts
+          .filter(p => !ATIVOS.includes(p.exposicoes?.status||''))
+          .sort((a,b) => (b.exposicoes?.ano||0) - (a.exposicoes?.ano||0) || alphaSort(a,b))
+
+        // Mostrar todos os ativos + pelo menos 1 encerrado recente
+        const toShow = [...ativos, ...encerrados.slice(0, Math.max(1, encerrados.length > 0 ? 1 : 0))]
+
+        const chips = toShow.map(p => {
+          const ativo = ATIVOS.includes(p.exposicoes?.status||'')
+          const tit = (p.exposicoes?.titulo||'?').split(' ').slice(0,4).join(' ')
+          const unidade = p.exposicoes?.unidades?.nome ? `<span style="opacity:0.6;font-size:10px;margin-left:3px">(${p.exposicoes.unidades.nome.split(' ').slice(-1)[0]})</span>` : ''
+          const cor = ativo
+            ? 'background:#dcfce7;color:#166534;border:1px solid #bbf7d0'
+            : 'background:var(--tag-bg);color:var(--muted);border:1px solid var(--border)'
+          return `<span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:14px;font-size:11px;font-weight:500;margin:2px;${cor}">${tit}${ativo ? ' ●' : ''}${unidade}</span>`
+        }).join('')
+
+        const extraEncerrados = encerrados.length > 1
+          ? `<span style="font-size:10px;color:var(--muted);margin-left:4px">+${encerrados.length-1} encerrada${encerrados.length-1>1?'s':''}</span>`
+          : ''
+        return `
+          <tr onclick="openColabModal('${c.id}')">
+            <td><strong>${c.nome}</strong>${c.empresa?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${c.empresa}</div>`:''}</td>
+            <td>${funcoes||'—'}</td>
+            <td style="white-space:normal">${chips||'<span style="color:var(--muted);font-style:italic;font-size:12px">Sem projetos</span>'}${extraEncerrados}</td>
+          </tr>`}).join('')}
+      </tbody>
+    </table>`
+}
+document.getElementById('search-colab').addEventListener('input', loadColaboradores)
+document.getElementById('filter-funcao').addEventListener('change', loadColaboradores)
+
+// ── DASHBOARD EDUCATIVO ──
+
+async function loadEducativo() {
+  const container = document.getElementById('educativo-container')
+  container.innerHTML = '<div class="loading">Carregando equipe educativa...</div>'
+
+  const ATIVOS = ['Aberta','Em produção','Em aprovação','Em tratativas']
+  const CAMPOS_SAL = [
+    { key: 'edu_estagiarios',    label: 'Estagiários',   salKey: 'sal_estagiarios' },
+    { key: 'edu_facilitador1',   label: 'Facilitador I', salKey: 'sal_facilitador1' },
+    { key: 'edu_facilitador2',   label: 'Facilitador II',salKey: 'sal_facilitador2' },
+    { key: 'edu_asa',            label: 'ASA',           salKey: 'sal_asa' }
+  ]
+  const CAMPOS_TODOS = [
+    ...CAMPOS_SAL,
+    { key: 'edu_educador_social', label: 'Ed. Social', salKey: null }
+  ]
+
+  const salarios = {}
+  CAMPOS_SAL.forEach(c => { salarios[c.salKey] = parseFloat(localStorage.getItem('edu_sal_' + c.salKey) || '0') })
+
+  // Buscar TODAS as exposições válidas para separar ativas da última encerrada
+  const anoAtual = new Date().getFullYear()
+  const { data: expos, error } = await db.from('exposicoes')
+    .select('id, titulo, status, ano, data_abertura, unidade_id, unidades(nome), edu_estagiarios, edu_facilitador1, edu_facilitador2, edu_educador_social, edu_asa')
+    .not('status', 'in', '("Cancelada","Postergada")')
+  
+  if (error) { container.innerHTML = '<div class="empty-state"><p>Erro ao carregar dados</p></div>'; return }
+
+  const allExpos = expos || []
+  const exposAtivas = allExpos.filter(e => ATIVOS.includes(e.status)).sort((a,b) => (a.titulo||'').localeCompare((b.titulo||''), 'pt-BR'))
+  
+  // Encontrar a última encerrada de cada unidade
+  const encerradas = allExpos.filter(e => e.status === 'Encerrada')
+  // Ordenar por ano desc, depois data desc
+  encerradas.sort((a,b) => (b.ano - a.ano) || (new Date(b.data_abertura||0) - new Date(a.data_abertura||0)))
+  const ultimaPorUnidade = {}
+  encerradas.forEach(e => {
+    const uid = e.unidade_id || '_sem'
+    if (!ultimaPorUnidade[uid]) ultimaPorUnidade[uid] = e
+  })
+
+  // KPIs globais (apenas ATIVAS)
+  const totais = {}
+  CAMPOS_TODOS.forEach(c => { totais[c.key] = exposAtivas.reduce((s,e) => s + (e[c.key]||0), 0) })
+  const totalPessoas = Object.values(totais).reduce((s,v) => s+v, 0)
+  const custoTotal = CAMPOS_SAL.reduce((s,c) => s + totais[c.key] * (salarios[c.salKey]||0), 0)
+
+  // Painel de salários
+  const salariosHtml = `
+    <div class="dash-card" style="margin-bottom:20px">
+      <div class="dash-title" style="margin-bottom:16px">Salários Mensais de Referência</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;align-items:end">
+        ${CAMPOS_SAL.map(c => `
+          <div>
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:6px">${c.label}</div>
+            <input type="number" id="edu-sal-${c.salKey}" value="${salarios[c.salKey]||''}" placeholder="R$ 0,00"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text)"
+              oninput="_salvarSalarioEdu('${c.salKey}', this.value)">
+          </div>`).join('')}
+        <div style="display:flex;align-items:flex-end">
+          <div style="background:var(--accent2);color:#fff;border-radius:10px;padding:10px 18px;font-family:'Fraunces',serif;font-size:18px;white-space:nowrap">
+            ${custoTotal ? 'R$ ' + custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'R$ —'}
+            <div style="font-size:10px;font-weight:400;opacity:0.8;font-family:'DM Sans'">/mês estimado</div>
+          </div>
+        </div>
+      </div>
+    </div>`
+
+  const kpiHtml = `
+    <div class="kpi-grid" style="margin-top:0;margin-bottom:24px">
+      <div class="kpi-card"><div class="kpi-value">${totalPessoas}</div><div class="kpi-label">Total Equipe Educativa</div><div class="kpi-sub">${exposAtivas.length} exposições ativas</div></div>
+      ${CAMPOS_TODOS.map(c => `<div class="kpi-card"><div class="kpi-value">${totais[c.key]}</div><div class="kpi-label">${c.label}</div></div>`).join('')}
+    </div>`
+
+  // Índice de exposições ATIVAS por unidade
+  const expoPorUnidade = {}
+  exposAtivas.forEach(e => {
+    const uid = e.unidade_id || '_sem'
+    if (!expoPorUnidade[uid]) expoPorUnidade[uid] = []
+    expoPorUnidade[uid].push(e)
+  })
+
+  // Unidades ordenadas (incluindo as que só tem histórico)
+  const unidadesOrdenadas = [...allUnidades].sort((a,b) => (a.nome||'').localeCompare((b.nome||''), 'pt-BR'))
+  if (expoPorUnidade['_sem']?.length || ultimaPorUnidade['_sem']) {
+    unidadesOrdenadas.push({ id: '_sem', nome: 'Sem unidade' })
+  }
+
+  const colWidth = 90
+  let tableHtml = `
+    <div class="timeline-wrapper" style="margin-top:0;overflow-x:auto">
+      <div style="display:grid;grid-template-columns:1fr ${CAMPOS_TODOS.map(()=>colWidth+'px').join(' ')};background:#eee;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10">
+        <div style="padding:12px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Unidade / Exposição</div>
+        ${CAMPOS_TODOS.map(c => `<div style="padding:12px 6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);text-align:center;border-left:1px solid var(--border)">${c.label}</div>`).join('')}
+      </div>`
+
+  unidadesOrdenadas.forEach(u => {
+    const uid = u.id
+    const uExposAtivas = expoPorUnidade[uid] || []
+    const uUltima = ultimaPorUnidade[uid]
+    
+    // Mostra a unidade se tem ativa OU se tem última encerrada
+    const temDados = uExposAtivas.length > 0 || !!uUltima
+    if (!temDados && uid !== '_sem') {
+       // Se o usuário quer TODAS as unidades mesmo sem NADA, mostramos.
+       // Mas já está configurado para mostrar tudo que está em allUnidades!
+    }
+
+    // Totais SÓ DAS ATIVAS na linha da unidade
+    const totU = {}
+    CAMPOS_TODOS.forEach(c => { totU[c.key] = uExposAtivas.reduce((s,e) => s+(e[c.key]||0), 0) })
+
+    tableHtml += `
+      <div id="edu-unit-${uid}" style="display:grid;grid-template-columns:1fr ${CAMPOS_TODOS.map(()=>colWidth+'px').join(' ')};background:#f5f3ef;border-bottom:2px solid var(--border);${temDados?'cursor:pointer':''}" ${temDados?`onclick="toggleEduUnit('${uid}')"`:''}>
+        <div style="padding:12px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+          ${temDados ? `<span id="edu-arrow-${uid}" style="font-size:10px;transition:transform 0.2s">▶</span>` : `<span style="font-size:10px;opacity:0.3">—</span>`}
+          ${u.nome}
+          ${!temDados ? '<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:4px">sem histórico ou ativas</span>' : ''}
+        </div>
+        ${CAMPOS_TODOS.map(c => `<div style="padding:12px 6px;text-align:center;font-size:14px;font-weight:700;color:${totU[c.key]?'var(--text)':'var(--muted)'};border-left:1px solid var(--border)">${totU[c.key]||'—'}</div>`).join('')}
+      </div>
+      <div id="edu-rows-${uid}" style="display:none; background:#fafafa;">`
+
+    // Linha de Comparativo (Última Encerrada)
+    if (uUltima) {
+      tableHtml += `
+        <div style="display:grid;grid-template-columns:1fr ${CAMPOS_TODOS.map(()=>colWidth+'px').join(' ')};border-bottom:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;" onclick="openPainel('${uUltima.id}')">
+          <div style="padding:10px 16px 10px 34px;font-size:12px;display:flex;align-items:center;gap:8px;color:var(--muted)">
+            <span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;flex-shrink:0;display:inline-block"></span>
+            <i>[Última] ${uUltima.titulo} <span style="font-size:10px;margin-left:4px">(${uUltima.ano})</span></i>
+          </div>
+          ${CAMPOS_TODOS.map(c => `<div style="padding:10px 6px;text-align:center;font-size:12px;color:var(--muted);border-left:1px solid var(--border)">${uUltima[c.key]||'—'}</div>`).join('')}
+        </div>`
+    }
+
+    // Exposições Ativas
+    uExposAtivas.forEach(e => {
+      const dotColor = '#22c55e'
+      const anoLabel = e.ano !== anoAtual ? `<span style="font-size:10px;background:#fef9c3;color:#92400e;padding:1px 6px;border-radius:10px;margin-left:6px">${e.ano}</span>` : ''
+      tableHtml += `
+        <div style="display:grid;grid-template-columns:1fr ${CAMPOS_TODOS.map(()=>colWidth+'px').join(' ')};border-bottom:1px solid var(--border);cursor:pointer" onclick="openPainel('${e.id}')">
+          <div style="padding:10px 16px 10px 34px;font-size:13px;display:flex;align-items:center;gap:8px">
+            <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;display:inline-block"></span>
+            ${e.titulo}${anoLabel}
+          </div>
+          ${CAMPOS_TODOS.map(c => `<div style="padding:10px 6px;text-align:center;font-size:13px;color:${e[c.key]?'var(--text)':'var(--muted)'};border-left:1px solid var(--border)">${e[c.key]||'—'}</div>`).join('')}
+        </div>`
+    })
+
+    tableHtml += `</div>`
+  })
+
+  tableHtml += `</div>`
+  container.innerHTML = salariosHtml + kpiHtml + tableHtml
+}
+
+function _salvarSalarioEdu(key, val) {
+  localStorage.setItem('edu_sal_' + key, parseFloat(val) || 0)
+  // Recarregar para recalcular o custo com os dados reais do banco
+  loadEducativo()
+}
+
+function toggleEduUnit(uid) {
+  const rows = document.getElementById('edu-rows-' + uid)
+  const arrow = document.getElementById('edu-arrow-' + uid)
+  if (!rows) return
+  const open = rows.style.display === 'block'
+  rows.style.display = open ? 'none' : 'block'
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(90deg)'
+}
+
+function openColabModal(id = null) {
+  editingColabId = id
+  document.getElementById('modal-colab-title').textContent = id ? 'Editar Colaborador' : 'Novo Colaborador'
+  document.getElementById('modal-colab-delete').style.display = id ? 'block' : 'none'
+  document.querySelectorAll('.chk-funcao').forEach(c => c.checked = false)
+  if (!id) {
+    ['nome','empresa','email','telefone','obs'].forEach(f => document.getElementById('fc-'+f).value = '')
+    document.getElementById('fc-participacoes-container').style.display = 'none'
+  } else {
+    const c = allColaboradores.find(x => x.id === id)
+    if (c) {
+      document.getElementById('fc-nome').value     = c.nome||''
+      document.getElementById('fc-empresa').value  = c.empresa||''
+      document.getElementById('fc-email').value    = c.email||''
+      document.getElementById('fc-telefone').value = c.telefone||''
+      document.getElementById('fc-obs').value      = c.observacoes||''
+      // marcar funções (array)
+      const funcoes = Array.isArray(c.funcao) ? c.funcao : (c.funcao ? [c.funcao] : [])
+      document.querySelectorAll('.chk-funcao').forEach(cb => { cb.checked = funcoes.includes(cb.value) })
+    }
+    document.getElementById('fc-participacoes-container').style.display = 'block';
+    document.getElementById('fc-participacoes').innerHTML = '<div class="loading" style="padding:0">Carregando participações...</div>';
+    db.from('exposicao_colaboradores').select('papel, exposicoes(titulo, ano)').eq('colaborador_id', id).then(({data}) => {
+      const el = document.getElementById('fc-participacoes');
+      if (!data || !data.length) el.innerHTML = '<span style="color:var(--muted);font-style:italic">Nenhuma participação registrada.</span>';
+      else {
+        data.sort((a,b) => (b.exposicoes?.ano||0) - (a.exposicoes?.ano||0));
+        el.innerHTML = '<ul style="margin:0;padding-left:14px;color:var(--text)">' + data.map(d => `<li><strong style="width:40px;display:inline-block">${d.exposicoes?.ano||'—'}</strong> ${d.exposicoes?.titulo} <span style="opacity:0.6;font-size:10px">(${d.papel})</span></li>`).join('') + '</ul>';
+      }
+    });
+  }
+  document.getElementById('modal-colaborador').classList.add('open')
+}
+
+function closeColabModal() { document.getElementById('modal-colaborador').classList.remove('open'); editingColabId = null }
+
+async function saveColaborador() {
+  const nome = document.getElementById('fc-nome').value.trim()
+  if (!nome) { showToast('Informe o nome', true); return }
+  const funcoes = Array.from(document.querySelectorAll('.chk-funcao:checked')).map(c => c.value)
+  const payload = {
+    nome,
+    funcao:      funcoes.length ? funcoes : null,
+    empresa:     document.getElementById('fc-empresa').value ||null,
+    email:       document.getElementById('fc-email').value   ||null,
+    telefone:    document.getElementById('fc-telefone').value||null,
+    observacoes: document.getElementById('fc-obs').value     ||null,
+  }
+  const { error } = editingColabId
+    ? await db.from('colaboradores').update(payload).eq('id', editingColabId)
+    : await db.from('colaboradores').insert(payload)
+  if (error) { showToast('Erro: ' + error.message, true); return }
+  registrarLog(editingColabId ? 'editou_colaborador' : 'criou_colaborador', `${editingColabId ? 'Editou' : 'Criou'} o colaborador "${nome}"`)
+  closeColabModal(); showToast(editingColabId ? 'Atualizado!' : 'Criado!'); await loadColaboradores()
+}
+
+async function deleteColaborador() {
+  if (!editingColabId || !confirm('Atenção: Excluir este colaborador o removerá de todas as exposições históricas em que ele participou. Tem certeza?')) return
+  await db.from('exposicao_colaboradores').delete().eq('colaborador_id', editingColabId);
+  const cNome = allColaboradores.find(x => x.id === editingColabId)?.nome || ''
+  const { error } = await db.from('colaboradores').delete().eq('id', editingColabId)
+  if (error) { showToast('Erro ao excluir', true); return }
+  registrarLog('excluiu_colaborador', `Excluiu o colaborador "${cNome}"`)
+  closeColabModal(); showToast('Excluído'); await loadColaboradores()
+}
+
+
+
+async function loadAberturas() {
+  const el = document.getElementById('aberturas-container');
+  const queryStr = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+  const { data: rawData, error } = await db.from('exposicoes')
+    .select(queryStr)
+    .not('status', 'in', '("Encerrada","Cancelada","Suspensa")')
+    .not('data_abertura', 'is', null)
+    .order('data_abertura');
+  
+  if (error) { console.error('Erro ao carregar aberturas:', error); return; }
+  if (!rawData?.length) { el.innerHTML = `<div class="empty-state"><p>Nenhuma abertura programada</p></div>`; return; }
+  
+  // Remover duplicatas por Título + Unidade (caso existam registros duplicados no banco)
+  const data = Array.from(new Map(rawData.map(item => [`${item.titulo}-${item.unidade_id}`, item])).values());
+  
+  // Sincronizar com global para permitir edição no painel
+  allExposicoes = data
+  const today = new Date();
+  let startMonth = today.getMonth();
+  
+  for (let i = data.length - 1; i >= 0; i--) {
+     if (data[i].status === 'Aberta' || data[i].status === 'Em produção') {
+        const d = new Date(data[i].data_abertura + 'T12:00:00');
+        if (d.getFullYear() === today.getFullYear() && d.getMonth() < startMonth) {
+           startMonth = d.getMonth();
+        }
+        break;
+     }
+  }
+
+  const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  let html = '';
+
+  for (let m = startMonth; m <= 11; m++) {
+      const expsMes = data.filter(e => {
+          const dt = new Date(e.data_abertura + 'T12:00:00');
+          return dt.getMonth() === m && dt.getFullYear() === today.getFullYear();
+      });
+
+      html += `
+        <div style="margin-bottom:32px">
+           <h3 style="font-family:'Fraunces',serif;font-size:18px;font-weight:400;margin-bottom:12px;color:var(--primary);border-bottom:1px solid var(--border);padding-bottom:8px">${MESES[m]}</h3>
+      `;
+
+      if (expsMes.length === 0) {
+          html += `<div style="color:var(--muted);font-size:13px;padding:8px 0;">Nenhuma abertura prevista.</div></div>`;
+          continue;
+      }
+
+      html += `<table class="data-table" style="margin-bottom:0">
+                 <thead><tr><th style="width:100px">Abertura</th><th style="width:120px">Unidade</th><th style="width:250px">Exposição</th><th>Assistentes</th></tr></thead>
+                 <tbody>`;
+      
+      expsMes.forEach(e => {
+          const descStr = e.sinopse || e.notas_adicionais || '';
+          const sinopse = descStr.length > 120 ? descStr.substring(0, 120) + '...' : descStr;
+          const desc = sinopse ? `<div style="font-size:11px;color:var(--muted);white-space:normal;margin-top:4px">${sinopse}</div>` : '';
+          
+          html += `
+            <tr onclick="openPainel('${e.id}')">
+              <td style="font-weight:600;white-space:nowrap">${fmtDate(e.data_abertura)}</td>
+              <td>${e.unidades?.nome||'—'}</td>
+              <td><strong>${e.titulo}</strong>${desc}</td>
+              <td style="color:var(--primary);font-size:12px">👤 ${getAssistenteNomes(e)}</td>
+            </tr>`;
+      });
+      html += `</tbody></table></div>`;
+  }
+  
+  el.innerHTML = html;
+}
+
+function fmtDate(s) { if(!s) return '—'; const [y,m,d]=s.split('-'); return `${d}/${m}/${y}` }
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.className = isError ? 'show error' : 'show'
+  setTimeout(() => t.className = '', 3000)
+}
+
+// ══════════════════════════════════════════
+// PAINEL LATERAL
+// ══════════════════════════════════════════
+
+const ETAPAS_CONFIG = [
+  { key: 'pre', label: 'Pré-Produção e Contratos' },
+  { key: 'projetos', label: 'Projetos e Licitações' },
+  { key: 'execucao', label: 'Execução e Montagem' },
+  { key: 'pos', label: 'Finalização e Prestação' }
+]
+
+const TAREFAS_SPEC = [
+  // PRÉ-PRODUÇÃO
+  { nome: 'DCA de mérito aprovado', etapa: 'pre', offset: -240 },
+  { nome: 'Contratação da pré-produção', etapa: 'pre', offset: -210 },
+  { nome: 'Contratação de arquiteto', etapa: 'pre', offset: -180 },
+  { nome: 'Contratação de curadoria', etapa: 'pre', offset: -180 },
+  { nome: 'Contratação de designer', etapa: 'pre', offset: -170 },
+  { nome: 'Contratação da coordenação do educativo', etapa: 'pre', offset: -160 },
+  { nome: 'Entrega da lista de obras', etapa: 'pre', offset: -150 },
+  
+  // PROJETOS E LICITAÇÕES
+  { nome: 'DCA de contratação da produção', etapa: 'projetos', offset: -120 },
+  { nome: 'Entrega do memorial de arquitetura', etapa: 'projetos', offset: -120 },
+  { nome: 'Entrega do projeto de iluminação', etapa: 'projetos', offset: -120 },
+  { nome: 'DCA de licitação de cenotecnia', etapa: 'projetos', offset: -90 },
+  { nome: 'DCA de licitação de iluminação', etapa: 'projetos', offset: -90 },
+  { nome: 'DCA de licitação de audiovisual', etapa: 'projetos', offset: -90 },
+  { nome: 'DCA de licitação de transporte e seguro', etapa: 'projetos', offset: -80 },
+  { nome: 'Assinar contrato de cenotecnia', etapa: 'projetos', offset: -45 },
+  { nome: 'Entrega do projeto gráfico / design', etapa: 'projetos', offset: -60 },
+  { nome: 'Aprovar materiais gráficos', etapa: 'projetos', offset: -40 },
+  
+  // EXECUÇÃO E MONTAGEM
+  { nome: ' DCA de contratação da equipe educativa', etapa: 'execucao', offset: -40 },
+  { nome: 'Assinar contrato de educativo', etapa: 'execucao', offset: -30 },
+  { nome: 'Recebimento de obras e materiais', etapa: 'execucao', offset: -25 },
+  { nome: 'Início da construção cenográfica', etapa: 'execucao', offset: -25 },
+  { nome: 'Montagem fina', etapa: 'execucao', offset: -22 },
+  { nome: 'Instalação de iluminação e audiovisual', etapa: 'execucao', offset: -15 },
+  { nome: 'Revisão de legendas e textos', etapa: 'execucao', offset: -10 },
+  { nome: 'Registro fotográfico da montagem', etapa: 'execucao', offset: -5 },
+  { nome: 'Inauguração / Abertura', etapa: 'execucao', offset: 0 },
+  
+  // FINALIZAÇÃO (Pós-Encerramento)
+  { nome: 'Início da desmontagem', etapa: 'pos', offset: 1, ref: 'fim' },
+  { nome: 'Devolução de obras emprestadas', etapa: 'pos', offset: 15, ref: 'fim' },
+  { nome: 'Retirada de materiais cenográficos', etapa: 'pos', offset: 20, ref: 'fim' },
+  { nome: 'Relatório de público', etapa: 'pos', offset: 30, ref: 'fim' },
+  { nome: 'Relatório de educativo', etapa: 'pos', offset: 60, ref: 'fim' },
+  { nome: 'Prestação de contas financeira', etapa: 'pos', offset: 90, ref: 'fim' },
+  { nome: 'Avaliação interna da produção', etapa: 'pos', offset: 90, ref: 'fim' },
+  { nome: 'Arquivamento de documentação', etapa: 'pos', offset: 90, ref: 'fim' }
+]
+
+let painelExpId = null
+let painelTarefas = []
+let painelEquipe = []
+
+async function openPainel(id) {
+  const isSec = currentProfile?.perfil === 'secretaria'
+  painelExpId = id
+  let e = allExposicoes.find(x => x.id == id) || arquivoDados.find(x => x.id == id)
+  
+  if (!e) {
+    const q = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+    const { data, error } = await db.from('exposicoes').select(q).eq('id', id).single()
+    if (error || !data) { console.error('Exposição não encontrada:', id); return }
+    e = data
+  }
+
+  document.getElementById('painel-unidade').innerHTML = `${e.unidades?.nome || '—'} ${e.unidade_espacos?.nome ? `<span class="unit-space-badge">${e.unidade_espacos.nome}</span>` : ''}`
+  document.getElementById('painel-titulo').textContent = e.titulo
+
+  const metaEl = document.getElementById('painel-meta')
+  metaEl.innerHTML = `
+    <span class="tag ${sc(e.status)}" style="opacity:1.0; padding:6px 12px; font-size:12px;">${e.status || '—'}</span>
+    ${e.semestre ? `<span style="font-size:15px; opacity:0.85; font-weight:500;">${e.semestre}</span>` : ''}
+    ${e.capital_interior ? `<span style="font-size:15px; opacity:0.85; font-weight:500;">${e.capital_interior}</span>` : ''}
+    ${e.data_abertura ? `<span style="font-size:15px; opacity:0.9; font-weight:600;">📅 ${fmtDate(e.data_abertura)}${e.data_encerramento?' → '+fmtDate(e.data_encerramento):''}</span>` : (e.periodo_previsto ? `<span style="font-size:15px;opacity:0.9;font-weight:600;">📅 ${e.periodo_previsto}</span>` : '')}
+    ${e.valor_estimado ? `<span style="font-size:14px; opacity:1.0; font-weight:800; color:#000; background:#a7f3d0; padding:4px 10px; border-radius:6px; margin-left:8px; letter-spacing:0.5px;">💰 ${isSec ? '<span style="font-size:10px">RESTRITO</span>' : fmtMoney(e.valor_estimado)}</span>` : ''}
+  `
+
+  document.getElementById('painel-assistentes').innerHTML = e.exposicao_assistentes?.length ? `👤 Assistentes: ${getAssistenteNomes(e)}` : '';
+
+
+  // Buscar equipe vinculada
+  const { data: equipeData } = await db.from('exposicao_colaboradores')
+    .select('papel, colaboradores(id, nome, funcao)')
+    .eq('exposicao_id', id)
+    .order('papel')
+  painelEquipe = equipeData || []
+
+  renderPainelDados(e)
+  loadPainelCronograma(e)
+
+  document.getElementById('painel-overlay').classList.add('open')
+  document.body.style.overflow = 'hidden'
+}
+
+function closePainel() {
+  document.getElementById('painel-overlay').classList.remove('open')
+  document.body.style.overflow = ''
+  painelExpId = null
+}
+
+function setActiveTab(tab) {
+  document.querySelectorAll('.painel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab))
+  document.querySelectorAll('.painel-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab))
+}
+
+document.querySelectorAll('.painel-tab').forEach(t =>
+  t.addEventListener('click', () => setActiveTab(t.dataset.tab))
+)
+document.getElementById('btn-painel-fechar').addEventListener('click', closePainel)
+document.getElementById('painel-overlay').addEventListener('click', ev => {
+  if (ev.target === document.getElementById('painel-overlay')) closePainel()
+})
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closePainel() })
+document.getElementById('btn-painel-editar').addEventListener('click', async () => {
+  if (!painelExpId) return
+  const id = painelExpId
+  closePainel()
+  await openExpModal(id)
+})
+
+// ── CRONOGRAMA ──
+
+async function loadPainelCronograma(exp) {
+  const cronDiv = document.getElementById('painel-cron-content')
+  const loadDiv = document.getElementById('painel-cron-loading')
+  cronDiv.style.display = 'none'; loadDiv.style.display = 'block'
+  const { data } = await db.from('tarefas').select('*').eq('exposicao_id', exp.id).order('data_prevista')
+  painelTarefas = data || []
+  loadDiv.style.display = 'none'; cronDiv.style.display = 'block'
+  renderCronogramaHeader(exp)
+  renderCronograma(exp)
+}
+
+function renderCronogramaHeader(exp) {
+  const headerDiv = document.getElementById('painel-cron-header')
+  if (!headerDiv) return
+  const isCons = currentProfile?.perfil === 'consultor'
+  headerDiv.innerHTML = `
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Período da Exposição</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Abertura</label>
+          <input type="date" id="cron-abertura" value="${exp.data_abertura||''}" 
+            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:13px;background:#fff"
+            ${isCons ? 'disabled' : ''}>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Encerramento</label>
+          <input type="date" id="cron-encerramento" value="${exp.data_encerramento||''}"
+            style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:13px;background:#fff"
+            ${isCons ? 'disabled' : ''}>
+        </div>
+        ${!isCons ? `<button onclick="salvarDatasEGerar()" class="btn-gerar-cronograma" style="margin-bottom:0;white-space:nowrap">
+          ⚙️ ${painelTarefas.length ? 'Regenerar' : 'Gerar Cronograma'}
+        </button>` : ''}
+      </div>
+    </div>
+  `
+}
+
+async function salvarDatasEGerar() {
+  const abertura = document.getElementById('cron-abertura').value
+  const encerramento = document.getElementById('cron-encerramento').value
+  if (!abertura) { showToast('Informe a data de abertura', true); return }
+  // Salvar datas no banco
+  const { error } = await db.from('exposicoes').update({
+    data_abertura: abertura || null,
+    data_encerramento: encerramento || null
+  }).eq('id', painelExpId)
+  if (error) { showToast('Erro ao salvar datas', true); return }
+  // Atualizar local
+  const exp = allExposicoes.find(x => x.id === painelExpId) || timelineExposicoes.find(x => x.id === painelExpId)
+  if (exp) { exp.data_abertura = abertura; exp.data_encerramento = encerramento }
+  if (painelTarefas.length && !confirm('Isso vai apagar e recriar todas as tarefas. Continuar?')) return
+  await gerarCronograma()
+}
+
+function renderCronograma(exp) {
+  const cronDiv = document.getElementById('painel-cron-content')
+  const temTarefas = painelTarefas.length > 0
+  let html = ''
+
+  if (temTarefas) {
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <span style="font-size:13px;color:var(--muted)">${painelTarefas.filter(t=>t.status==='concluida').length} de ${painelTarefas.length} tarefas concluídas</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 100px 130px 120px 40px;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);margin-bottom:16px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">
+      <div>Tarefa</div>
+      <div>Data Ideal</div>
+      <div>Data Real</div>
+      <div>Status</div>
+      <div>Obs</div>
+    </div>`
+
+    const hoje = new Date(); hoje.setHours(0,0,0,0)
+    const porEtapa = {}
+    ETAPAS_CONFIG.forEach(et => { porEtapa[et.key] = [] })
+    painelTarefas.forEach(t => { (porEtapa[t.etapa] ? porEtapa[t.etapa] : porEtapa['pre']).push(t) })
+
+    ETAPAS_CONFIG.forEach(et => {
+      const tarefas = porEtapa[et.key]
+      if (!tarefas.length) return
+      const concluidas = tarefas.filter(t => t.status === 'concluida').length
+      html += `<div class="etapa-grupo">
+        <div class="etapa-titulo">${et.label} <span class="etapa-badge">${concluidas}/${tarefas.length}</span></div>`
+      tarefas.forEach(t => {
+        const atrasada = t.data_prevista && new Date(t.data_prevista+'T00:00:00') < hoje && t.status !== 'concluida'
+        html += `<div class="tarefa-row ${atrasada?'tarefa-atrasada':''}" style="display:grid;grid-template-columns:1fr 100px 130px 120px 40px;gap:12px;align-items:center">
+          <div class="tarefa-nome">${t.nome}</div>
+          <div class="tarefa-data">${t.data_prevista ? fmtDate(t.data_prevista) : '—'}</div>
+          <div>
+            <input type="date" value="${t.data_real||''}" onchange="updateTarefaDataReal('${t.id}',this.value)"
+              style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-family:'DM Sans',sans-serif;font-size:11px;background:#fff;color:var(--text);margin-top:2px;">
+          </div>
+          <select class="tarefa-status-sel" onchange="updateTarefaStatus('${t.id}',this.value)">
+            <option ${t.status==='pendente'?'selected':''}>pendente</option>
+            <option ${t.status==='em_andamento'?'selected':''}>em_andamento</option>
+            <option ${t.status==='concluida'?'selected':''}>concluida</option>
+            <option ${t.status==='atrasada'?'selected':''}>atrasada</option>
+          </select>
+          <button class="tarefa-obs-btn ${t.observacoes?'has-obs':''}" title="${t.observacoes||'Adicionar observação'}" onclick="editarObsTarefa('${t.id}')">💬</button>
+        </div>`
+      })
+      html += `</div>`
+    })
+  }
+  cronDiv.innerHTML = html
+}
+
+async function gerarCronograma() {
+  const exp = allExposicoes.find(x => x.id === painelExpId)
+  if (!exp || !exp.data_abertura) return
+  const btn = document.getElementById('btn-gerar-cron')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando...' }
+
+  await db.from('tarefas').delete().eq('exposicao_id', exp.id)
+
+  const abertura = new Date(exp.data_abertura + 'T12:00:00')
+  const encerramento = exp.data_encerramento ? new Date(exp.data_encerramento + 'T12:00:00') : new Date(abertura.getTime() + 60*24*60*60*1000)
+  
+  const toInsert = TAREFAS_SPEC.map(spec => {
+    const base = spec.ref === 'fim' ? encerramento : abertura
+    const data = new Date(base)
+    data.setDate(data.getDate() + spec.offset)
+    
+    return {
+      exposicao_id: exp.id,
+      nome: spec.nome,
+      etapa: spec.etapa,
+      data_prevista: data.toISOString().split('T')[0],
+      status: 'pendente'
+    }
+  })
+
+  const { error } = await db.from('tarefas').insert(toInsert)
+  if (error) { showToast('Erro ao gerar: ' + error.message, true); return }
+  registrarLog('gerou_cronograma', `Gerou cronograma para "${exp.titulo}" (${toInsert.length} tarefas)`, exp.id)
+  showToast(`✅ ${toInsert.length} tarefas criadas!`)
+  await loadPainelCronograma(exp)
+}
+
+async function updateTarefaStatus(id, status) {
+  await db.from('tarefas').update({ status }).eq('id', id)
+  const t = painelTarefas.find(x => x.id === id)
+  if (t) t.status = status
+  const exp = allExposicoes.find(x => x.id === painelExpId)
+  if (exp) renderCronograma(exp)
+}
+
+async function updateTarefaDataReal(id, dataRealVal) {
+  const data = dataRealVal || null
+  await db.from('tarefas').update({ data_real: data }).eq('id', id)
+  const t = painelTarefas.find(x => x.id === id)
+  if (t) t.data_real = data
+}
+
+async function editarObsTarefa(id) {
+  const t = painelTarefas.find(x => x.id === id)
+  if (!t) return
+  const nova = prompt('Observação para esta tarefa:', t.observacoes || '')
+  if (nova === null) return
+  await db.from('tarefas').update({ observacoes: nova || null }).eq('id', id)
+  t.observacoes = nova || null
+  const exp = allExposicoes.find(x => x.id === painelExpId)
+  if (exp) renderCronograma(exp)
+}
+
+// ── DADOS ──
+
+function fmtVal(v) {
+  return (v !== null && v !== undefined && v !== '') ? v : '<span class="vazio">—</span>'
+}
+function fmtMoney(v) { return v ? 'R$ ' + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : 'R$ 0,00' }
+
+function getMesesDoTexto(texto) {
+  if (!texto) return null;
+  const t = texto.toLowerCase();
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const mesesCurto = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  
+  let primeiro = -1, ultimo = -1;
+  meses.forEach((m, idx) => {
+    if (t.includes(m) || t.includes(mesesCurto[idx])) {
+      if (primeiro === -1) primeiro = idx;
+      ultimo = idx;
+    }
+  });
+  return primeiro !== -1 ? { inicio: primeiro, fim: ultimo } : null;
+}
+
+function renderPainelDados(e) {
+  const el = document.getElementById('painel-dados-content')
+  const linha = (label, val) => `<div class="dados-item"><div class="dados-label">${label}</div><div class="dados-valor">${val}</div></div>`
+
+  // Montar seção equipe a partir de painelEquipe
+  const isSec = currentProfile?.perfil === 'secretaria'
+  const porPapel = {}
+  painelEquipe.forEach(ec => {
+    if (!porPapel[ec.papel]) porPapel[ec.papel] = []
+    if (ec.colaboradores) porPapel[ec.papel].push(ec.colaboradores.nome)
+  })
+  const mapValores = {
+    'Curador(a)': { label: 'Cachê / Contrato', val: e.cache_curadoria, isMoney: true },
+    'Produção': { label: 'Contrato', val: e.contrato_producao, isMoney: false },
+    'Arquiteto(a)': { label: 'Contrato', val: e.contrato_arquitetura, isMoney: false },
+    'Educativo': { label: 'Contrato', val: e.contrato_educativo, isMoney: false },
+    'Acessibilidade': { label: 'Contrato', val: e.acessibilidade, isMoney: false },
+    'Empresa de Cenotecnia': { label: 'Orçamento', val: e.valor_cenotecnia, isMoney: true }
+  }
+
+  const rolesSet = new Set(Object.keys(porPapel))
+  Object.keys(mapValores).forEach(k => {
+    if (mapValores[k].val || mapValores[k].val === 0) rolesSet.add(k)
+  })
+
+  // Ordenar funções (tentar manter Curador, Produtor, Arquiteto primeiro)
+  const ordem = ['Curador(a)', 'Produção', 'Arquiteto(a)', 'Educativo', 'Empresa de Cenotecnia']
+  const sortedRoles = Array.from(rolesSet).sort((a, b) => {
+    const idxA = ordem.indexOf(a); const idxB = ordem.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  })
+
+  const equipeHtml = sortedRoles.map(papel => {
+    const nomes = porPapel[papel] ? porPapel[papel].join(', ') : '<span style="color:var(--muted);font-style:italic;font-size:12px;font-weight:400">Não informado</span>'
+    const vInfo = mapValores[papel]
+    const valStr = (vInfo && vInfo.val !== null && vInfo.val !== undefined && vInfo.val !== '') 
+      ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px">${vInfo.label}</span>
+          <span style="font-family:'Fraunces',serif; font-size:15px; color:var(--primary); font-weight:500;">${isSec ? '<span style="font-size:10px;color:var(--muted)">RESTRITO</span>' : (vInfo.isMoney ? fmtMoney(vInfo.val) : vInfo.val)}</span>
+        </div>`
+      : ''
+    return `<div class="contrato-card" style="padding:16px;">
+              <div class="contrato-label">${papel}</div>
+              <div style="font-size:14px; font-weight:500; color:var(--text); line-height:1.4">${nomes}</div>
+              ${valStr}
+            </div>`
+  }).join('')
+
+  // Bloco de Visitação/Público
+  const temVisitacao = e.visitas_expo_meta || e.visitas_expo_estatistico || e.visitas_mediadas_meta || e.visitas_mediadas_estatistico
+  const visitacaoHtml = temVisitacao ? `
+    <div class="dados-secao">
+      <div class="dados-secao-titulo">Visitação e Público</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px">Visitas à Exposição</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--muted)">Meta</span>
+            <span style="font-family:'Fraunces',serif;font-size:18px">${e.visitas_expo_meta ? e.visitas_expo_meta.toLocaleString('pt-BR') : '—'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;color:var(--muted)">Estatístico</span>
+            <span style="font-family:'Fraunces',serif;font-size:18px;color:${e.visitas_expo_estatistico >= (e.visitas_expo_meta||0) && e.visitas_expo_meta ? '#166534' : 'var(--text)'}">${e.visitas_expo_estatistico ? e.visitas_expo_estatistico.toLocaleString('pt-BR') : '—'}</span>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px">Visitas Mediadas</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:var(--muted)">Meta</span>
+            <span style="font-family:'Fraunces',serif;font-size:18px">${e.visitas_mediadas_meta ? e.visitas_mediadas_meta.toLocaleString('pt-BR') : '—'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;color:var(--muted)">Estatístico</span>
+            <span style="font-family:'Fraunces',serif;font-size:18px;color:${e.visitas_mediadas_estatistico >= (e.visitas_mediadas_meta||0) && e.visitas_mediadas_meta ? '#166534' : 'var(--text)'}">${e.visitas_mediadas_estatistico ? e.visitas_mediadas_estatistico.toLocaleString('pt-BR') : '—'}</span>
+          </div>
+        </div>
+      </div>
+    </div>` : ''
+
+  el.innerHTML = `
+    ${e.sinopse ? `<div class="dados-secao"><div class="dados-secao-titulo">Sinopse</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${e.sinopse}</div></div>` : ''}
+    <div class="dados-secao">
+      <div class="dados-secao-titulo">Equipe e Contratos</div>
+      <div class="contratos-container">
+        ${equipeHtml || '<span class="dados-valor vazio">Nenhuma equipe ou contrato registrado.</span>'}
+      </div>
+    </div>
+    ${visitacaoHtml}
+    ${e.notas_adicionais ? `<div class="dados-secao"><div class="dados-secao-titulo">Notas adicionais</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${e.notas_adicionais}</div></div>` : ''}
+    ${e.referencias_links ? `<div class="dados-secao"><div class="dados-secao-titulo">Referências / Links</div><div style="font-size:13px">${e.referencias_links}</div></div>` : ''}
+  `
+}
+
+// ── HISTÓRICO ──
+
+async function salvarHistorico() {
+  if (!painelExpId) return
+  const txt = document.getElementById('painel-historico-txt').value
+  const { error } = await db.from('exposicoes').update({ historico_abertura: txt || null }).eq('id', painelExpId)
+  if (error) { showToast('Erro ao salvar', true); return }
+  const exp = allExposicoes.find(x => x.id === painelExpId) || timelineExposicoes.find(x => x.id === painelExpId)
+  if (exp) exp.historico_abertura = txt || null
+  showToast('Ficha técnica salva!')
+}
+
+// ── ADMIN ──
+
+async function loadAdmin() {
+  const container = document.getElementById('admin-users-container')
+  container.innerHTML = `<div class="loading">Carregando usuários...</div>`
+  
+  const { data: users, error } = await db.from('usuarios').select('*').order('nome')
+  if (error) { showToast('Erro ao carregar usuários', true); return }
+  
+  let html = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Usuário</th>
+          <th>Perfil / Acesso</th>
+          <th>Última Atividade</th>
+        </tr>
+      </thead>
+      <tbody>
+  `
+  
+  users.forEach(u => {
+    const isMe = u.id === currentUser.id
+    const dataAcesso = u.ultimo_acesso ? new Date(u.ultimo_acesso).toLocaleString('pt-BR') : 'Sem registro'
+    
+    html += `
+      <tr>
+        <td>
+          <div style="font-weight:600">${u.nome} ${isMe ? '<small>(Você)</small>' : ''}</div>
+          <div style="font-size:11px; color:var(--muted)">${u.email}</div>
+        </td>
+        <td>
+          <select class="admin-role-sel" onchange="updateUsuarioPerfil('${u.id}', this.value)" ${isMe ? 'disabled' : ''}>
+            <option value="gestor" ${u.perfil==='gestor'?'selected':''}>Gestor</option>
+            <option value="assistente" ${u.perfil==='assistente'?'selected':''}>Assistente</option>
+            <option value="secretaria" ${u.perfil==='secretaria'?'selected':''}>Secretaria</option>
+            <option value="consultor" ${u.perfil==='consultor'?'selected':''}>Consultor</option>
+          </select>
+        </td>
+        <td class="last-access">${dataAcesso}</td>
+      </tr>
+    `
+  })
+  
+  html += `</tbody></table>`
+  container.innerHTML = html
+}
+
+async function updateUsuarioPerfil(userId, novoPerfil) {
+  const { error } = await db.from('usuarios').update({ perfil: novoPerfil }).eq('id', userId)
+  if (error) {
+    showToast('Erro ao atualizar perfil', true)
+    loadAdmin()
+    return
+  }
+  const uNome = allUsuarios.find(x => x.id === userId)?.nome || ''
+  registrarLog('editou_perfil_usuario', `Alterou perfil de "${uNome}" para ${novoPerfil}`)
+  showToast('Perfil atualizado com sucesso!')
+}
+// ── LOG DE ATIVIDADES ──
+async function registrarLog(acao, detalhes, exposicaoId = null) {
+  if (!currentUser) return
+  try {
+    await db.from('atividades_log').insert({
+      usuario_id: currentUser.id,
+      acao,
+      detalhes,
+      exposicao_id: exposicaoId || null
+    })
+  } catch (e) { console.warn('Erro ao registrar log:', e) }
+}
+
+function tempoRelativo(iso) {
+  const d = new Date(iso)
+  const agora = new Date()
+  const diff = Math.floor((agora - d) / 1000)
+  if (diff < 60) return 'agora mesmo'
+  if (diff < 3600) return `há ${Math.floor(diff/60)} min`
+  if (diff < 86400) return `há ${Math.floor(diff/3600)}h`
+  if (diff < 172800) return 'ontem'
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const ACAO_ICONE = {
+  criou_exposicao: '🎨', editou_exposicao: '✏️', excluiu_exposicao: '🗑️',
+  criou_colaborador: '👤', editou_colaborador: '✏️', excluiu_colaborador: '🗑️',
+  criou_unidade: '🏛️', editou_unidade: '✏️', excluiu_unidade: '🗑️',
+  editou_perfil_usuario: '🔑', gerou_cronograma: '📅'
+}
+
+async function loadLogs() {
+  const container = document.getElementById('logs-container')
+  if (!container) return
+  container.innerHTML = '<div class="loading">Carregando logs...</div>'
+
+  // Popular filtro de usuários
+  const filterEl = document.getElementById('filter-log-user')
+  if (filterEl && filterEl.options.length <= 1) {
+    allUsuarios.forEach(u => {
+      filterEl.innerHTML += `<option value="${u.id}">${u.nome}</option>`
+    })
+  }
+
+  const filterUser = document.getElementById('filter-log-user')?.value || ''
+
+  let q = db.from('atividades_log')
+    .select('*, usuarios(nome, email)')
+    .order('created_at', { ascending: false })
+    .limit(80)
+
+  if (filterUser) q = q.eq('usuario_id', filterUser)
+
+  const { data, error } = await q
+  if (error) { console.error(error); container.innerHTML = '<div class="empty-state"><p>Erro ao carregar logs</p></div>'; return }
+  if (!data?.length) { container.innerHTML = '<div class="empty-state"><p>Nenhuma atividade registrada ainda</p></div>'; return }
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      ${data.map(log => {
+        const icone = ACAO_ICONE[log.acao] || '📋'
+        const nome = log.usuarios?.nome || log.usuarios?.email || '—'
+        const tempo = tempoRelativo(log.created_at)
+        return `
+          <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--surface)">
+            <div style="font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:8px;flex-shrink:0">${icone}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:var(--text);line-height:1.4">
+                <strong style="color:var(--accent2)">${nome}</strong>
+                <span style="color:var(--muted)"> — </span>${log.detalhes || log.acao}
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0">${tempo}</div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+
+// ── BALANÇO EXECUTIVO ──
+function openBalancoAno() {
+  const list = allExposicoes
+  const ano = anoVisaoGeral
+  const total = list.length
+  const isSec = currentProfile?.perfil === 'secretaria'
+
+  // Métricas
+  const visitasMeta = list.reduce((s,e) => s + (parseInt(e.visitas_expo_meta)||0), 0)
+  const visitasEstat = list.reduce((s,e) => s + (parseInt(e.visitas_expo_estatistico)||0), 0)
+  const mediMeta = list.reduce((s,e) => s + (parseInt(e.visitas_mediadas_meta)||0), 0)
+  const mediEstat = list.reduce((s,e) => s + (parseInt(e.visitas_mediadas_estatistico)||0), 0)
+  const orcTotal = list.reduce((s,e) => s + (parseFloat(e.valor_estimado)||0), 0)
+
+  // Educativo
+  const eduEst = list.reduce((s,e) => s + (parseInt(e.edu_estagiarios)||0), 0)
+  const eduF1 = list.reduce((s,e) => s + (parseInt(e.edu_facilitador1)||0), 0)
+  const eduF2 = list.reduce((s,e) => s + (parseInt(e.edu_facilitador2)||0), 0)
+  const eduEdSoc = list.reduce((s,e) => s + (parseInt(e.edu_educador_social)||0), 0)
+  const eduAsa = list.reduce((s,e) => s + (parseInt(e.edu_asa)||0), 0)
+  const eduTotal = eduEst + eduF1 + eduF2 + eduEdSoc + eduAsa
+
+  // Perfil
+  const intl = list.filter(e => e.is_internacional).length
+  const itin = list.filter(e => e.is_itinerancia).length
+  const ined = list.filter(e => e.is_inedita).length
+  const mono = list.filter(e => e.is_monografica).length
+  const comParc = list.filter(e => e.parceria).length
+
+  // Status
+  const statusMap = {}
+  list.forEach(e => statusMap[e.status] = (statusMap[e.status]||0) + 1)
+
+  // Capital / Interior
+  const cap = list.filter(e => e.capital_interior === 'Capital').length
+  const inter = list.filter(e => e.capital_interior === 'Interior').length
+
+  // Unidades ativas
+  const unidadesAtivas = [...new Set(list.map(e => e.unidade_id).filter(Boolean))]
+  const unidadeNomes = unidadesAtivas.map(uid => {
+    const u = allUnidades.find(x => x.id === uid)
+    const count = list.filter(e => e.unidade_id === uid).length
+    return { nome: u?.nome || '—', count }
+  }).sort((a,b) => b.count - a.count)
+
+  const pctBar = (val, max, color) => `<div style="flex:1;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden"><div style="height:100%;width:${max?Math.round(val/max*100):0}%;background:${color};border-radius:4px;transition:width 0.4s"></div></div>`
+
+  const overlay = document.createElement('div')
+  overlay.id = 'balanco-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,0.97);overflow-y:auto;animation:fadeIn 0.3s'
+  overlay.innerHTML = `
+    <div style="max-width:1000px;margin:0 auto;padding:40px 30px;color:#e4e4e7;font-family:'DM Sans',sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:40px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#71717a;margin-bottom:6px">Balanço Executivo</div>
+          <div style="font-family:'Fraunces',serif;font-size:36px;font-weight:300;color:#fafafa">${ano}</div>
+        </div>
+        <button onclick="document.getElementById('balanco-overlay').remove()" style="background:none;border:1px solid #3f3f46;color:#a1a1aa;padding:8px 20px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px">Fechar ✕</button>
+      </div>
+
+      <!-- KPIs Principais -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px">
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px">
+          <div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Exposições</div>
+          <div style="font-family:'Fraunces',serif;font-size:32px;color:#fafafa">${total}</div>
+          <div style="font-size:11px;color:#52525b;margin-top:4px">${cap} capital · ${inter} interior</div>
+        </div>
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px">
+          <div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Público Previsto</div>
+          <div style="font-family:'Fraunces',serif;font-size:32px;color:#fafafa">${visitasMeta ? visitasMeta.toLocaleString('pt-BR') : '—'}</div>
+          <div style="font-size:11px;color:#52525b;margin-top:4px">${visitasEstat ? 'Estat: ' + visitasEstat.toLocaleString('pt-BR') : 'Sem dados estatísticos'}</div>
+        </div>
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px">
+          <div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Visitas Mediadas</div>
+          <div style="font-family:'Fraunces',serif;font-size:32px;color:#fafafa">${mediMeta ? mediMeta.toLocaleString('pt-BR') : '—'}</div>
+          <div style="font-size:11px;color:#52525b;margin-top:4px">${mediEstat ? 'Estat: ' + mediEstat.toLocaleString('pt-BR') : 'Sem dados estatísticos'}</div>
+        </div>
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px">
+          <div style="font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">${isSec ? 'Orçamento' : 'Investimento Total'}</div>
+          <div style="font-family:'Fraunces',serif;font-size:32px;color:#fafafa">${isSec ? '🔒' : (orcTotal ? fmtMoney(orcTotal) : '—')}</div>
+          <div style="font-size:11px;color:#52525b;margin-top:4px">${isSec ? 'Restrito' : list.filter(e=>e.valor_estimado).length + ' com orçamento'}</div>
+        </div>
+      </div>
+
+      <!-- Linha 2: Perfil + Status -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px">
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px">
+          <div style="font-size:12px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px">Perfil do Portfólio</div>
+          ${[
+            { label: 'Internacionais', val: intl, color: '#3b82f6' },
+            { label: 'Itinerâncias', val: itin, color: '#8b5cf6' },
+            { label: 'Inéditas', val: ined, color: '#22c55e' },
+            { label: 'Monográficas', val: mono, color: '#f59e0b' },
+            { label: 'Com Parcerias', val: comParc, color: '#ec4899' }
+          ].map(item => `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              <div style="width:110px;font-size:12px;color:#a1a1aa">${item.label}</div>
+              ${pctBar(item.val, total, item.color)}
+              <div style="width:40px;text-align:right;font-family:'Fraunces',serif;font-size:16px;color:#fafafa">${item.val}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px">
+          <div style="font-size:12px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px">Distribuição por Status</div>
+          ${Object.entries(statusMap).sort((a,b)=>b[1]-a[1]).map(([status, count]) => `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              <div style="width:110px;font-size:12px;color:#a1a1aa">${status}</div>
+              ${pctBar(count, total, '#71717a')}
+              <div style="width:40px;text-align:right;font-family:'Fraunces',serif;font-size:16px;color:#fafafa">${count}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Linha 3: Educativo + Unidades -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px">
+          <div style="font-size:12px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px">Força Educativa Alocada</div>
+          <div style="font-family:'Fraunces',serif;font-size:42px;color:#fafafa;margin-bottom:16px">${eduTotal} <span style="font-size:16px;color:#71717a;font-family:'DM Sans',sans-serif">profissionais</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            ${[
+              { label: 'Estagiários', val: eduEst },
+              { label: 'Facilitador I', val: eduF1 },
+              { label: 'Facilitador II', val: eduF2 },
+              { label: 'Educ. Social', val: eduEdSoc },
+              { label: 'ASA', val: eduAsa }
+            ].map(item => `
+              <div style="background:#27272a;border-radius:8px;padding:10px;text-align:center">
+                <div style="font-family:'Fraunces',serif;font-size:20px;color:#fafafa">${item.val}</div>
+                <div style="font-size:9px;color:#71717a;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">${item.label}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:24px">
+          <div style="font-size:12px;color:#a1a1aa;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px">Unidades Ativas (${unidadesAtivas.length})</div>
+          <div style="max-height:220px;overflow-y:auto">
+            ${unidadeNomes.map(u => `
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #27272a;font-size:13px">
+                <span style="color:#d4d4d8">${u.nome}</span>
+                <span style="font-family:'Fraunces',serif;color:#fafafa;font-size:15px">${u.count}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+}
+
+// ── CADERNO PDF ──
+function exportarCaderno() {
+  const list = allExposicoes
+  const ano = anoVisaoGeral
+  if (!list.length) { showToast('Nenhuma exposição para exportar', true); return }
+
+  // Extrair curador de cada exposição
+  function getCurador(e) {
+    if (!e.exposicao_colaboradores) return '—'
+    const cur = e.exposicao_colaboradores.find(c => c.papel === 'Curador(a)' && c.colaboradores)
+    return cur ? cur.colaboradores.nome : '—'
+  }
+
+  const isSec = currentProfile?.perfil === 'secretaria'
+
+  const pages = list.map((e, i) => {
+    const curador = getCurador(e)
+    const periodo = e.data_abertura
+      ? fmtDate(e.data_abertura) + (e.data_encerramento ? ' — ' + fmtDate(e.data_encerramento) : '')
+      : (e.periodo_previsto || '—')
+    const unidade = e.unidades?.nome || '—'
+    const espaco = e.unidade_espacos?.nome || ''
+    const valor = isSec ? 'Restrito' : (e.valor_estimado ? fmtMoney(parseFloat(e.valor_estimado)) : '—')
+    const publico = e.visitas_expo_meta ? parseInt(e.visitas_expo_meta).toLocaleString('pt-BR') + ' visitantes (meta)' : '—'
+    const sinopse = e.sinopse || ''
+    const img = e.imagem_url || ''
+    const flags = [
+      e.is_internacional ? 'Internacional' : null,
+      e.is_itinerancia ? 'Itinerância' : null,
+      e.is_inedita ? 'Inédita' : null,
+      e.is_monografica ? 'Monográfica' : null
+    ].filter(Boolean)
+
+    return `
+      <div class="expo-page">
+        ${img ? `<div class="expo-hero" style="background-image:url('${img}')"></div>` : `<div class="expo-hero expo-hero-empty"><span>📷</span></div>`}
+        <div class="expo-content">
+          <div class="expo-num">${String(i+1).padStart(2,'0')} / ${String(list.length).padStart(2,'0')}</div>
+          <div class="expo-unidade">${unidade}${espaco ? ' · ' + espaco : ''}</div>
+          <h1 class="expo-titulo">${e.titulo}</h1>
+          ${flags.length ? `<div class="expo-flags">${flags.map(f => `<span class="expo-flag">${f}</span>`).join('')}</div>` : ''}
+          ${e.parceria ? `<div class="expo-parceria">🤝 Parceria: ${e.parceria}</div>` : ''}
+          <div class="expo-grid">
+            <div class="expo-field"><div class="expo-field-label">Período</div><div class="expo-field-value">${periodo}</div></div>
+            <div class="expo-field"><div class="expo-field-label">Curadoria</div><div class="expo-field-value">${curador}</div></div>
+            <div class="expo-field"><div class="expo-field-label">Investimento Estimado</div><div class="expo-field-value">${valor}</div></div>
+            <div class="expo-field"><div class="expo-field-label">Público Esperado</div><div class="expo-field-value">${publico}</div></div>
+          </div>
+          ${sinopse ? `<div class="expo-sinopse"><div class="expo-field-label">Sinopse</div><p>${sinopse}</p></div>` : ''}
+        </div>
+      </div>
+    `
+  }).join('')
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Caderno de Exposições ${ano} — SESC São Paulo</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; color: #1a1814; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .cover-page {
+    width: 100%; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: linear-gradient(135deg, #1a3a2a 0%, #0f2318 100%); color: #fff; text-align: center;
+    page-break-after: always;
+  }
+  .cover-logo { font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 16px; }
+  .cover-title { font-family: 'Fraunces', serif; font-size: 52px; font-weight: 300; line-height: 1.15; margin-bottom: 12px; }
+  .cover-title em { font-style: italic; color: #c0392b; }
+  .cover-sub { font-size: 16px; color: rgba(255,255,255,0.6); margin-top: 8px; }
+  .cover-year { font-family: 'Fraunces', serif; font-size: 120px; font-weight: 300; color: rgba(255,255,255,0.08); margin-top: 30px; }
+
+  .expo-page {
+    width: 100%; min-height: 100vh; display: flex; flex-direction: column;
+    page-break-after: always; page-break-inside: avoid; background: #fff;
+  }
+  .expo-hero {
+    width: 100%; height: 45vh; background-size: cover; background-position: center; background-color: #f0ebe4;
+  }
+  .expo-hero-empty { display: flex; align-items: center; justify-content: center; }
+  .expo-hero-empty span { font-size: 60px; opacity: 0.15; }
+  .expo-content { padding: 36px 48px; flex: 1; display: flex; flex-direction: column; }
+  .expo-num { font-size: 10px; letter-spacing: 3px; color: #a1a1aa; text-transform: uppercase; margin-bottom: 12px; }
+  .expo-unidade { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: #7a746b; margin-bottom: 8px; }
+  .expo-titulo { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 400; color: #1a1814; line-height: 1.15; margin-bottom: 16px; }
+  .expo-flags { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .expo-flag { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; background: #f4f4f5; color: #52525b; padding: 3px 10px; border-radius: 12px; border: 1px solid #e4e4e7; }
+  .expo-parceria { font-size: 12px; color: #52525b; margin-bottom: 16px; padding: 8px 12px; background: #fafafa; border-radius: 6px; border: 1px solid #e4e4e7; }
+  .expo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; padding-top: 16px; border-top: 1px solid #e4e4e7; }
+  .expo-field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #a1a1aa; font-weight: 600; margin-bottom: 4px; }
+  .expo-field-value { font-size: 15px; color: #1a1814; font-weight: 500; }
+  .expo-sinopse { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e4e4e7; }
+  .expo-sinopse p { font-size: 13px; line-height: 1.7; color: #3f3f46; margin-top: 6px; }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style></head><body>
+  <div class="no-print" style="position:fixed;top:16px;right:16px;z-index:999">
+    <button onclick="window.print()" style="background:#1a3a2a;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2)">🖨️ Salvar como PDF</button>
+  </div>
+  <div class="cover-page">
+    <div class="cover-logo">SESC São Paulo</div>
+    <div class="cover-title">Caderno de<br><em>Exposições</em></div>
+    <div class="cover-sub">${list.length} exposições · Ano ${ano}</div>
+    <div class="cover-year">${ano}</div>
+  </div>
+  ${pages}
+</body></html>`
+
+  const win = window.open('', '_blank')
+  win.document.write(html)
+  win.document.close()
+}
+
+init()
+</script>
+</body>
+</html>

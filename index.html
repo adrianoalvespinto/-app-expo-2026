@@ -38,6 +38,12 @@
   .admin-table tr:hover { background: rgba(0,0,0,0.01); }
   .admin-role-sel { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; background: #fff; }
   .last-access { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+  
+  nav { display: flex; gap: 32px; padding: 0 40px; border-bottom: 1px solid var(--border); background: #fff; overflow-x: auto; }
+  .atv-tab-content { display: none; }
+  .atv-tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+  .unit-card-deep:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
   :root {
     --bg:        #f5f3ef;
@@ -612,7 +618,6 @@
     <div class="nav-item" data-page="timeline">Timeline</div>
     <div class="nav-item" data-page="educativo">Educativo</div>
     <div class="nav-item" data-page="colaboradores">Colaboradores</div>
-    <div class="nav-item" data-page="educadores">Educadores</div>
     <div class="nav-item" data-page="eta-cursos">Cursos e Oficinas</div>
     <div class="nav-item" data-page="unidades">Unidades</div>
     <div class="nav-item" data-page="admin" id="nav-admin">Admin</div>
@@ -737,35 +742,39 @@
     <div class="page" id="page-eta-cursos">
       <div class="page-header">
         <div class="page-title"><small>Programação Complementar</small>Cursos e Oficinas</div>
-        <button class="btn-add" id="btn-nova-atividade">+ Nova Atividade</button>
       </div>
-      <div class="filters">
-        <input type="text" class="search-input" id="search-eta" placeholder="Buscar por título...">
-        <select class="filter-select" id="filter-eta-unidade"><option value="">Todas as unidades</option></select>
+      
+      <div class="painel-tabs" style="margin-bottom:20px;">
+        <div class="painel-tab active" data-atv-tab="lista">Programação</div>
+        <div class="painel-tab" data-atv-tab="equipe">Equipe de Educadores</div>
       </div>
-      <div id="eta-cursos-container"><div class="loading">Carregando...</div></div>
+
+      <!-- ABA: LISTA DE CURSOS -->
+      <div class="atv-tab-content active" id="atv-tab-lista">
+        <div class="page-header" style="margin-top:0; border-bottom:none">
+          <div class="page-title" style="font-size:16px">Minha Programação</div>
+          <button class="btn-add" id="btn-nova-atividade">+ Nova Atividade</button>
+        </div>
+        <div class="filters">
+          <input type="text" class="search-input" id="search-eta" placeholder="Buscar por título...">
+          <select class="filter-select" id="filter-eta-unidade"><option value="">Todas as unidades</option></select>
+        </div>
+        <div id="eta-cursos-container"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- ABA: EQUIPE DE EDUCADORES -->
+      <div class="atv-tab-content" id="atv-tab-equipe">
+        <div class="page-header" style="margin-top:0; border-bottom:none">
+          <div class="page-title" style="font-size:16px">Gestão de Educadores Fixos</div>
+          <button class="btn-add" id="btn-novo-educador">+ Novo Educador</button>
+        </div>
+        <div class="filters">
+          <input type="text" class="search-input" id="search-educador" placeholder="Buscar educador...">
+          <select class="filter-select" id="filter-educador-unidade"><option value="">Todas as unidades</option></select>
+        </div>
+        <div id="educadores-container"><div class="loading">Carregando...</div></div>
+      </div>
     </div>
-
-
-    <!-- ABERTURAS -->
-    <div class="page" id="page-aberturas">
-      <div class="page-header"><div class="page-title"><small>Secretaria</small>Controle de Aberturas</div></div>
-      <div id="aberturas-container"><div class="loading">Carregando...</div></div>
-    </div>
-
-    <!-- EDUCADORES -->
-    <div class="page" id="page-educadores">
-      <div class="page-header">
-        <div class="page-title"><small>Equipe fixa</small>Educadores das Unidades</div>
-        <button class="btn-add" id="btn-novo-educador">+ Novo Educador</button>
-      </div>
-      <div class="filters">
-        <input type="text" class="search-input" id="search-educador" placeholder="Buscar educador...">
-        <select class="filter-select" id="filter-educador-unidade"><option value="">Todas as unidades</option></select>
-      </div>
-      <div id="educadores-container"><div class="loading">Carregando...</div></div>
-    </div>
-
 
     <div class="page" id="page-admin">
       <div class="page-header"><div class="page-title"><small>Configurações</small>Administração e Usuários</div></div>
@@ -3912,41 +3921,89 @@ async function deleteEducador() {
   }
 }
 
+// Tab Switching for Cursos e Oficinas
+document.querySelectorAll('[data-atv-tab]').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('[data-atv-tab]').forEach(t => t.classList.remove('active'))
+    tab.classList.add('active')
+    document.querySelectorAll('.atv-tab-content').forEach(c => c.classList.remove('active'))
+    document.getElementById('atv-tab-' + tab.getAttribute('data-atv-tab')).classList.add('active')
+    if (tab.getAttribute('data-atv-tab') === 'lista') loadAtividadesComplementares()
+    if (tab.getAttribute('data-atv-tab') === 'equipe') loadEducadores()
+  }
+})
+
 async function loadUnidades() {
   const container = document.getElementById('unidades-container')
   if(!container) return
   container.innerHTML = '<div class="loading">Carregando unidades...</div>'
   const search = document.getElementById('search-unidade').value.toLowerCase()
 
-  const { data, error } = await db.from('unidades').select('*').order('nome')
-  if (error) { console.error(error); return }
-  allUnidades = data || []
+  // Precisamos de dados agregados: espaços e exposições do ano
+  const [
+    { data: units, error: uErr },
+    { data: exps, error: eErr },
+    { data: spaces, error: sErr }
+  ] = await Promise.all([
+    db.from('unidades').select('*').order('nome'),
+    db.from('exposicoes').select('*').eq('ano', anoVisaoGeral),
+    db.from('unidade_espacos').select('*')
+  ])
 
-  // Reversão layout fichas (uso original do app expo v1)
-  const filtered = allUnidades.filter(u => u.nome.toLowerCase().includes(search))
-  
+  if (uErr || eErr || sErr) { console.error('Error loading deep units data'); return }
+  allUnidades = units || []
+
   // KPIs
-  const kTotal = document.getElementById('kpi-uni-total')
-  const kCap = document.getElementById('kpi-uni-capital')
-  const kInt = document.getElementById('kpi-uni-interior')
-  if(kTotal) kTotal.textContent = data.length
-  if(kCap) kCap.textContent = data.filter(u => u.capital_interior === 'Capital').length
-  if(kInt) kInt.textContent = data.filter(u => u.capital_interior === 'Interior').length
+  document.getElementById('kpi-uni-total').textContent = units.length
+  document.getElementById('kpi-uni-capital').textContent = units.filter(u => u.capital_interior === 'Capital').length
+  document.getElementById('kpi-uni-interior').textContent = units.filter(u => u.capital_interior === 'Interior').length
+
+  const filtered = units.filter(u => u.nome.toLowerCase().includes(search))
+  const hoje = new Date().toISOString().split('T')[0]
 
   container.innerHTML = `
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:20px;">
-      ${filtered.map(u => `
-        <div class="dash-card" style="cursor:pointer" onclick="openUnitModal('${u.id}')">
-          <div style="font-size:10px; text-transform:uppercase; color:var(--muted); letter-spacing:1px; margin-bottom:8px;">${u.capital_interior || '—'}</div>
-          <div style="font-family:'Fraunces',serif; font-size:18px; color:var(--primary);">${u.nome}</div>
-          <div style="display:flex; gap:12px; margin-top:12px; font-size:12px; opacity:0.8">
-            <div><b>Gerente:</b> ${u.gerente || '—'}</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:24px;">
+      ${filtered.map(u => {
+        const uSpaces = spaces.filter(s => s.unidade_id === u.id)
+        const uExps = exps.filter(e => e.unidade_id === u.id)
+        
+        const emCartaz = uExps.find(e => e.status === 'Aberta')
+        const proximas = uExps.filter(e => e.data_abertura && e.data_abertura > hoje).sort((a,b) => a.data_abertura.localeCompare(b.data_abertura))
+        const pTotal = uExps.reduce((acc, e) => acc + (parseInt(e.visitas_expo_estat) || 0), 0)
+
+        return `
+          <div class="dash-card unit-card-deep" onclick="openUnitModal('${u.id}')" style="cursor:pointer; transition:transform 0.2s;">
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+              <div>
+                <div style="font-size:10px; text-transform:uppercase; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">${u.capital_interior || '—'}</div>
+                <div style="font-family:'Fraunces',serif; font-size:20px; color:var(--primary);">${u.nome}</div>
+              </div>
+              <div style="background:var(--bg); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">${uSpaces.length} espaços</div>
+            </div>
+
+            <div style="background:rgba(0,0,0,0.02); padding:12px; border-radius:8px; margin-bottom:12px;">
+              <div style="font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Em Cartaz</div>
+              <div style="font-size:14px; font-weight:500;">${emCartaz ? emCartaz.titulo : '<span style="color:var(--muted)">Nenhuma exposição aberta</span>'}</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
+              <div>
+                <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Próxima Expo</div>
+                <div style="font-weight:600;">${proximas[0] ? proximas[0].titulo : '—'}</div>
+                <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDay(proximas[0].data_abertura) : ''}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoVisaoGeral}</div>
+                <div style="font-size:18px; font-family:'Fraunces',serif; color:var(--accent);">${pTotal.toLocaleString('pt-BR')}</div>
+              </div>
+            </div>
           </div>
-        </div>
-      `).join('')}
+        `
+      }).join('')}
     </div>
   `
 }
+
 
 function initListenersEducadores() {
   const btnNovo = document.getElementById('btn-novo-educador')

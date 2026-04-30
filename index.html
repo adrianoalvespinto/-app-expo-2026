@@ -3940,15 +3940,17 @@ async function loadUnidades() {
   const search = document.getElementById('search-unidade').value.toLowerCase()
 
   try {
-    const [uRes, eRes, sRes] = await Promise.all([
-      db.from('unidades').select('*').order('nome'),
-      db.from('exposicoes').select('*').eq('ano', anoVisaoGeral),
-      db.from('unidade_espacos').select('*')
-    ])
-
+    // Carregamento individual para identificar o erro específico
+    const uRes = await db.from('unidades').select('*').order('nome')
+    if (uRes.error) throw new Error('Erro na tabela Unidades: ' + uRes.error.message)
+    
+    // Tenta carregar os outros, mas não trava se falhar
+    const eRes = await db.from('exposicoes').select('*').eq('ano', anoVisaoGeral)
+    const sRes = await db.from('unidade_espacos').select('*')
+    
     const units = uRes.data || []
-    const exps = eRes.data || []
-    const spaces = sRes.data || []
+    const exps = (eRes && eRes.data) ? eRes.data : []
+    const spaces = (sRes && sRes.data) ? sRes.data : []
     allUnidades = units
 
     // KPIs
@@ -4007,9 +4009,10 @@ async function loadUnidades() {
     `
   } catch (err) {
     console.error(err)
-    container.innerHTML = '<div class="no-data">Erro ao carregar unidades. Verifique sua conexão.</div>'
+    container.innerHTML = `<div class="no-data">Erro: ${err.message}. Verifique as tabelas no Supabase.</div>`
   }
 }
+
 
 
 

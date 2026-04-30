@@ -3717,7 +3717,7 @@ async function loadAtividadesComplementares() {
             <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">${a.tipo_espaco || '—'} • ${a.unidades?.nome || 'Sem unidade'}</div>
             <div class="card-title">${a.titulo}</div>
             <div class="card-info">
-              <span>📅 ${a.data_inicio ? fmtDay(a.data_inicio) : '—'}</span>
+              <span>📅 ${a.data_inicio ? fmtDate(a.data_inicio) : '—'}</span>
               <span>👥 ${a.publico_real || a.publico_estimado || 0} pessoas</span>
             </div>
           </div>
@@ -3995,7 +3995,7 @@ async function loadUnidades() {
                 <div>
                   <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Próxima Expo</div>
                   <div style="font-weight:600; color:var(--primary); line-height:1.2; margin-bottom:2px;">${proximas[0] ? proximas[0].titulo : '—'}</div>
-                  <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDay(proximas[0].data_abertura) : ''}</div>
+                  <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDate(proximas[0].data_abertura) : ''}</div>
                 </div>
                 <div style="text-align:right">
                   <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoVisaoGeral}</div>

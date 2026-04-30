@@ -613,6 +613,7 @@
     <div class="nav-item" data-page="aberturas">Aberturas</div>
     <div class="nav-item" data-page="colaboradores">Colaboradores</div>
     <div class="nav-item" data-page="educativo">Educativo</div>
+    <div class="nav-item" data-page="eta-cursos">ETA & Cursos</div>
     <div class="nav-item" data-page="unidades">Unidades</div>
     <div class="nav-item" data-page="admin" id="nav-admin">Admin</div>
   </nav>
@@ -721,10 +722,34 @@
         <div class="page-title"><small>Banco de dados</small>Unidades</div>
         <button class="btn-add" id="btn-nova-unidade">+ Nova Unidade</button>
       </div>
+      <div class="kpi-grid" style="margin-bottom:24px">
+        <div class="kpi-card"><div class="kpi-value" id="kpi-uni-total">0</div><div class="kpi-label">Total de Unidades</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-uni-capital">0</div><div class="kpi-label">Capital</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-uni-interior">0</div><div class="kpi-label">Interior</div></div>
+      </div>
       <div class="filters">
         <input type="text" class="search-input" id="search-unidade" placeholder="Buscar unidade...">
       </div>
       <div id="unidades-container"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- ETA & CURSOS -->
+    <div class="page" id="page-eta-cursos">
+      <div class="page-header">
+        <div class="page-title"><small>Programação Complementar</small>ETA, Cursos e Oficinas</div>
+        <button class="btn-add" id="btn-nova-atividade">+ Nova Atividade</button>
+      </div>
+      <div class="filters">
+        <input type="text" class="search-input" id="search-eta" placeholder="Buscar por título...">
+        <select class="filter-select" id="filter-eta-tipo">
+          <option value="">Todos os tipos</option>
+          <option value="ETA">ETA (Tecnologias e Artes)</option>
+          <option value="Curso">Curso</option>
+          <option value="Oficina">Oficina</option>
+        </select>
+        <select class="filter-select" id="filter-eta-unidade"><option value="">Todas as unidades</option></select>
+      </div>
+      <div id="eta-cursos-container"><div class="loading">Carregando...</div></div>
     </div>
 
 
@@ -1002,6 +1027,52 @@
   </div>
 </div>
 
+<!-- MODAL ETA / CURSOS -->
+<div class="modal-overlay" id="modal-atividade">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-atv-title">Nova Atividade</div>
+      <button class="modal-close" id="modal-atv-close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>Título da Atividade</label><input type="text" id="fat-titulo"></div>
+        <div class="form-field"><label>Tipo</label>
+          <select id="fat-tipo">
+            <option>ETA</option>
+            <option>Curso</option>
+            <option>Oficina</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Unidade</label><select id="fat-unidade"></select></div>
+        <div class="form-field"><label>Data Início</label><input type="date" id="fat-inicio"></div>
+        <div class="form-field"><label>Data Fim</label><input type="date" id="fat-fim"></div>
+        <div class="form-field"><label>Docente / Orientador</label><input type="text" id="fat-docente"></div>
+        <div class="form-field"><label>Carga Horária</label><input type="text" id="fat-carga" placeholder="ex: 20h"></div>
+        <div class="form-field"><label>Público Estimado</label><input type="number" id="fat-pub-est"></div>
+        <div class="form-field"><label>Público Real</label><input type="number" id="fat-pub-real"></div>
+        <div class="form-field"><label>Valor Estimado (R$)</label><input type="number" id="fat-valor" step="0.01"></div>
+        <div class="form-field"><label>Status</label>
+          <select id="fat-status">
+            <option>Em planejamento</option>
+            <option>Em andamento</option>
+            <option>Realizada</option>
+            <option>Cancelada</option>
+          </select>
+        </div>
+        <div class="form-field full"><label>Descrição / Objetivos</label><textarea id="fat-descricao"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete" id="modal-atv-delete" style="display:none">Excluir</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" id="modal-atv-cancel">Cancelar</button>
+        <button class="btn-save" id="modal-atv-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- PAINEL LATERAL DE DETALHE -->
@@ -1051,7 +1122,7 @@ const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let currentUser = null, currentProfile = null
-let allExposicoes = [], timelineExposicoes = [], allUnidades = [], allUsuarios = [], allColaboradores = [], allEspacos = []
+let allExposicoes = [], timelineExposicoes = [], allUnidades = [], allAtividades = [], allUsuarios = [], allColaboradores = [], allEspacos = []
 let editingExpId = null, editingColabId = null, editingUnitId = null
 let editingEquipe = {} // { papel: [{ id, nome }] }
 let editingUnitSpaces = []
@@ -1294,6 +1365,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (page === 'timeline') loadTimeline()
       if (page === 'colaboradores') loadColaboradores()
       if (page === 'educativo') loadEducativo()
+      if (page === 'eta-cursos') loadAtividadesComplementares()
       if (page === 'unidades') loadUnidades()
 
       if (page === 'aberturas') loadAberturas()
@@ -1371,6 +1443,17 @@ async function loadBaseData() {
   const su = document.getElementById('f-unidade')
   su.innerHTML = '<option value="">— Selecione —</option>'
   allUnidades.forEach(u => su.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  
+  const feu = document.getElementById('filter-eta-unidade')
+  if(feu) {
+    feu.innerHTML = '<option value="">Todas as unidades</option>'
+    allUnidades.forEach(u => feu.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  }
+  const fau = document.getElementById('fat-unidade')
+  if(fau) {
+      fau.innerHTML = '<option value="">— Selecione —</option>'
+      allUnidades.forEach(u => fau.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  }
   
   const acb = document.getElementById('assistentes-checkboxes');
   if(acb) {
@@ -3530,6 +3613,208 @@ function exportarCaderno() {
   win.document.write(html)
   win.document.close()
 }
+
+async function loadAtividadesComplementares() {
+  const container = document.getElementById('eta-cursos-container')
+  container.innerHTML = '<div class="loading">Carregando atividades...</div>'
+  
+  const search = document.getElementById('search-eta').value.toLowerCase()
+  const tipo = document.getElementById('filter-eta-tipo').value
+  const unidade = document.getElementById('filter-eta-unidade').value
+
+  let q = db.from('atividades_complementares').select('*, unidades(nome)')
+  
+  if (tipo) q = q.eq('tipo', tipo)
+  if (unidade) q = q.eq('unidade_id', unidade)
+  
+  const { data, error } = await q.order('titulo')
+  if (error) { console.error(error); return }
+  allAtividades = data || []
+
+  const filtered = allAtividades.filter(a => a.titulo.toLowerCase().includes(search))
+  
+  if (!filtered.length) {
+    container.innerHTML = '<div class="no-data">Nenhuma atividade encontrada</div>'
+    return
+  }
+
+  container.innerHTML = `
+    <div class="cards-grid">
+      ${filtered.map(a => {
+        const statusClass = a.status ? a.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-') : 'planejamento'
+        return `
+          <div class="expo-card" onclick="openAtividadeModal('${a.id}')">
+            <div class="status-tag status-${statusClass}">${a.status}</div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">${a.tipo} • ${a.unidades?.nome || 'Sem unidade'}</div>
+            <div class="card-title">${a.titulo}</div>
+            <div class="card-info">
+              <span>📅 ${a.data_inicio ? fmtDay(a.data_inicio) : '—'}</span>
+              <span>👥 ${a.publico_real || a.publico_estimado || 0} pessoas</span>
+            </div>
+          </div>
+        `
+      }).join('')}
+    </div>
+  `
+}
+
+let activeAtividadeId = null
+function openAtividadeModal(id = null) {
+  activeAtividadeId = id
+  const modal = document.getElementById('modal-atividade')
+  const title = document.getElementById('modal-atv-title')
+  const btnDel = document.getElementById('modal-atv-delete')
+  
+  // Reset fields
+  document.getElementById('fat-titulo').value = ''
+  document.getElementById('fat-tipo').value = 'ETA'
+  document.getElementById('fat-unidade').value = ''
+  document.getElementById('fat-inicio').value = ''
+  document.getElementById('fat-fim').value = ''
+  document.getElementById('fat-docente').value = ''
+  document.getElementById('fat-carga').value = ''
+  document.getElementById('fat-pub-est').value = 0
+  document.getElementById('fat-pub-real').value = 0
+  document.getElementById('fat-valor').value = 0
+  document.getElementById('fat-status').value = 'Em planejamento'
+  document.getElementById('fat-descricao').value = ''
+
+  if (id) {
+    title.textContent = 'Editar Atividade'
+    btnDel.style.display = 'block'
+    const atv = allAtividades.find(a => a.id === id)
+    if (atv) {
+        document.getElementById('fat-titulo').value = atv.titulo
+        document.getElementById('fat-tipo').value = atv.tipo
+        document.getElementById('fat-unidade').value = atv.unidade_id || ''
+        document.getElementById('fat-inicio').value = atv.data_inicio || ''
+        document.getElementById('fat-fim').value = atv.data_fim || ''
+        document.getElementById('fat-docente').value = atv.docente_orientador || ''
+        document.getElementById('fat-carga').value = atv.carga_horaria || ''
+        document.getElementById('fat-pub-est').value = atv.publico_estimado || 0
+        document.getElementById('fat-pub-real').value = atv.publico_real || 0
+        document.getElementById('fat-valor').value = atv.valor_estimado || 0
+        document.getElementById('fat-status').value = atv.status
+        document.getElementById('fat-descricao').value = atv.descricao || ''
+    }
+  } else {
+    title.textContent = 'Nova Atividade'
+    btnDel.style.display = 'none'
+  }
+  modal.style.display = 'flex'
+}
+
+async function saveAtividade() {
+  const atv = {
+    titulo: document.getElementById('fat-titulo').value,
+    tipo: document.getElementById('fat-tipo').value,
+    unidade_id: document.getElementById('fat-unidade').value || null,
+    data_inicio: document.getElementById('fat-inicio').value || null,
+    data_fim: document.getElementById('fat-fim').value || null,
+    docente_orientador: document.getElementById('fat-docente').value,
+    carga_horaria: document.getElementById('fat-carga').value,
+    publico_estimado: parseInt(document.getElementById('fat-pub-est').value) || 0,
+    publico_real: parseInt(document.getElementById('fat-pub-real').value) || 0,
+    valor_estimado: parseFloat(document.getElementById('fat-valor').value) || 0,
+    status: document.getElementById('fat-status').value,
+    descricao: document.getElementById('fat-descricao').value
+  }
+
+  if (!atv.titulo) { alert('Título é obrigatório'); return }
+
+  if (activeAtividadeId) {
+    const { error } = await db.from('atividades_complementares').update(atv).eq('id', activeAtividadeId)
+    if (!error) registrarLog('editou', 'atividade', atv.titulo)
+  } else {
+    const { error } = await db.from('atividades_complementares').insert(atv)
+    if (!error) registrarLog('criou', 'atividade', atv.titulo)
+  }
+
+  document.getElementById('modal-atividade').style.display = 'none'
+  loadAtividadesComplementares()
+}
+
+async function deleteAtividade() {
+  if (!confirm('Excluir atividade permanentemente?')) return
+  const { error } = await db.from('atividades_complementares').delete().eq('id', activeAtividadeId)
+  if (!error) {
+    registrarLog('excluiu', 'atividade', 'ID: ' + activeAtividadeId)
+    document.getElementById('modal-atividade').style.display = 'none'
+    loadAtividadesComplementares()
+  }
+}
+
+async function loadUnidades() {
+  const container = document.getElementById('unidades-container')
+  if(!container) return
+  container.innerHTML = '<div class="loading">Carregando unidades...</div>'
+  const search = document.getElementById('search-unidade').value.toLowerCase()
+
+  const { data, error } = await db.from('unidades').select('*').order('nome')
+  if (error) { console.error(error); return }
+  allUnidades = data || []
+
+  const filtered = allUnidades.filter(u => u.nome.toLowerCase().includes(search))
+  
+  // KPIs
+  const kTotal = document.getElementById('kpi-uni-total')
+  const kCap = document.getElementById('kpi-uni-capital')
+  const kInt = document.getElementById('kpi-uni-interior')
+  if(kTotal) kTotal.textContent = data.length
+  if(kCap) kCap.textContent = data.filter(u => u.capital_interior === 'Capital').length
+  if(kInt) kInt.textContent = data.filter(u => u.capital_interior === 'Interior').length
+
+  container.innerHTML = `
+    <div class="cards-grid">
+      ${filtered.map(u => `
+        <div class="unit-card" onclick="openUnitModal('${u.id}')">
+          <div class="unit-header">
+            <div class="unit-name">${u.nome}</div>
+            <div class="unit-region">${u.capital_interior || '—'}</div>
+          </div>
+          <div class="unit-stats">
+            <div class="unit-stat-item">
+              <div class="unit-stat-label">Gerente</div>
+              <div class="unit-stat-value">${u.gerente || '—'}</div>
+            </div>
+            <div class="unit-stat-item">
+              <div class="unit-stat-label">Téc. Artes</div>
+              <div class="unit-stat-value">${u.tecnico_artes || '—'}</div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `
+}
+
+function initListenersAtividades() {
+    const btnNovo = document.getElementById('btn-nova-atividade')
+    if(btnNovo) btnNovo.onclick = () => openAtividadeModal()
+    
+    const sEta = document.getElementById('search-eta')
+    if(sEta) sEta.oninput = () => loadAtividadesComplementares()
+    
+    const fTipo = document.getElementById('filter-eta-tipo')
+    if(fTipo) fTipo.onchange = () => loadAtividadesComplementares()
+    
+    const fUni = document.getElementById('filter-eta-unidade')
+    if(fUni) fUni.onchange = () => loadAtividadesComplementares()
+    
+    const mClose = document.getElementById('modal-atv-close')
+    if(mClose) mClose.onclick = () => document.getElementById('modal-atividade').style.display = 'none'
+    
+    const mCancel = document.getElementById('modal-atv-cancel')
+    if(mCancel) mCancel.onclick = () => document.getElementById('modal-atividade').style.display = 'none'
+    
+    const mSave = document.getElementById('modal-atv-save')
+    if(mSave) mSave.onclick = () => saveAtividade()
+    
+    const mDel = document.getElementById('modal-atv-delete')
+    if(mDel) mDel.onclick = () => deleteAtividade()
+}
+
+document.addEventListener('DOMContentLoaded', initListenersAtividades)
 
 init()
 </script>

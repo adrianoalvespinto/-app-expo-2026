@@ -3939,70 +3939,78 @@ async function loadUnidades() {
   container.innerHTML = '<div class="loading">Carregando unidades...</div>'
   const search = document.getElementById('search-unidade').value.toLowerCase()
 
-  // Precisamos de dados agregados: espaços e exposições do ano
-  const [
-    { data: units, error: uErr },
-    { data: exps, error: eErr },
-    { data: spaces, error: sErr }
-  ] = await Promise.all([
-    db.from('unidades').select('*').order('nome'),
-    db.from('exposicoes').select('*').eq('ano', anoVisaoGeral),
-    db.from('unidade_espacos').select('*')
-  ])
+  try {
+    const [uRes, eRes, sRes] = await Promise.all([
+      db.from('unidades').select('*').order('nome'),
+      db.from('exposicoes').select('*').eq('ano', anoVisaoGeral),
+      db.from('unidade_espacos').select('*')
+    ])
 
-  if (uErr || eErr || sErr) { console.error('Error loading deep units data'); return }
-  allUnidades = units || []
+    const units = uRes.data || []
+    const exps = eRes.data || []
+    const spaces = sRes.data || []
+    allUnidades = units
 
-  // KPIs
-  document.getElementById('kpi-uni-total').textContent = units.length
-  document.getElementById('kpi-uni-capital').textContent = units.filter(u => u.capital_interior === 'Capital').length
-  document.getElementById('kpi-uni-interior').textContent = units.filter(u => u.capital_interior === 'Interior').length
+    // KPIs
+    if (document.getElementById('kpi-uni-total')) document.getElementById('kpi-uni-total').textContent = units.length
+    if (document.getElementById('kpi-uni-capital')) document.getElementById('kpi-uni-capital').textContent = units.filter(u => u.capital_interior === 'Capital').length
+    if (document.getElementById('kpi-uni-interior')) document.getElementById('kpi-uni-interior').textContent = units.filter(u => u.capital_interior === 'Interior').length
 
-  const filtered = units.filter(u => u.nome.toLowerCase().includes(search))
-  const hoje = new Date().toISOString().split('T')[0]
+    const filtered = units.filter(u => u.nome.toLowerCase().includes(search))
+    const hoje = new Date().toISOString().split('T')[0]
 
-  container.innerHTML = `
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:24px;">
-      ${filtered.map(u => {
-        const uSpaces = spaces.filter(s => s.unidade_id === u.id)
-        const uExps = exps.filter(e => e.unidade_id === u.id)
-        
-        const emCartaz = uExps.find(e => e.status === 'Aberta')
-        const proximas = uExps.filter(e => e.data_abertura && e.data_abertura > hoje).sort((a,b) => a.data_abertura.localeCompare(b.data_abertura))
-        const pTotal = uExps.reduce((acc, e) => acc + (parseInt(e.visitas_expo_estat) || 0), 0)
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="no-data">Nenhuma unidade encontrada</div>'
+      return
+    }
 
-        return `
-          <div class="dash-card unit-card-deep" onclick="openUnitModal('${u.id}')" style="cursor:pointer; transition:transform 0.2s;">
-            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
-              <div>
-                <div style="font-size:10px; text-transform:uppercase; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">${u.capital_interior || '—'}</div>
-                <div style="font-family:'Fraunces',serif; font-size:20px; color:var(--primary);">${u.nome}</div>
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:24px;">
+        ${filtered.map(u => {
+          const uSpaces = spaces.filter(s => s.unidade_id === u.id)
+          const uExps = exps.filter(e => e.unidade_id === u.id)
+          
+          const emCartaz = uExps.find(e => e.status === 'Aberta')
+          const proximas = uExps.filter(e => e.data_abertura && e.data_abertura > hoje).sort((a,b) => a.data_abertura.localeCompare(b.data_abertura))
+          const pTotal = uExps.reduce((acc, e) => acc + (parseInt(e.visitas_expo_estat) || 0), 0)
+
+          return `
+            <div class="dash-card unit-card-deep" onclick="openUnitModal('${u.id}')" style="cursor:pointer; transition:transform 0.2s; border:1px solid var(--border)">
+              <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:12px;">
+                <div>
+                  <div style="font-size:10px; text-transform:uppercase; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">${u.capital_interior || '—'}</div>
+                  <div style="font-family:'Fraunces',serif; font-size:20px; color:var(--primary);">${u.nome}</div>
+                </div>
+                <div style="background:var(--bg); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">${uSpaces.length} espaços</div>
               </div>
-              <div style="background:var(--bg); padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600;">${uSpaces.length} espaços</div>
-            </div>
 
-            <div style="background:rgba(0,0,0,0.02); padding:12px; border-radius:8px; margin-bottom:12px;">
-              <div style="font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:8px;">Em Cartaz</div>
-              <div style="font-size:14px; font-weight:500;">${emCartaz ? emCartaz.titulo : '<span style="color:var(--muted)">Nenhuma exposição aberta</span>'}</div>
-            </div>
+              <div style="background:rgba(0,0,0,0.02); padding:12px; border-radius:8px; margin-bottom:12px;">
+                <div style="font-size:11px; color:var(--muted); text-transform:uppercase; margin-bottom:4px;">Em Cartaz</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text);">${emCartaz ? emCartaz.titulo : '<span style="color:var(--muted); font-weight:400">Nenhuma exposição aberta</span>'}</div>
+              </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
-              <div>
-                <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Próxima Expo</div>
-                <div style="font-weight:600;">${proximas[0] ? proximas[0].titulo : '—'}</div>
-                <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDay(proximas[0].data_abertura) : ''}</div>
-              </div>
-              <div style="text-align:right">
-                <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoVisaoGeral}</div>
-                <div style="font-size:18px; font-family:'Fraunces',serif; color:var(--accent);">${pTotal.toLocaleString('pt-BR')}</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px;">
+                <div>
+                  <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Próxima Expo</div>
+                  <div style="font-weight:600; color:var(--primary); line-height:1.2; margin-bottom:2px;">${proximas[0] ? proximas[0].titulo : '—'}</div>
+                  <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDay(proximas[0].data_abertura) : ''}</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoVisaoGeral}</div>
+                  <div style="font-size:18px; font-family:'Fraunces',serif; color:var(--accent); font-weight:700;">${pTotal.toLocaleString('pt-BR')}</div>
+                </div>
               </div>
             </div>
-          </div>
-        `
-      }).join('')}
-    </div>
-  `
+          `
+        }).join('')}
+      </div>
+    `
+  } catch (err) {
+    console.error(err)
+    container.innerHTML = '<div class="no-data">Erro ao carregar unidades. Verifique sua conexão.</div>'
+  }
 }
+
 
 
 function initListenersEducadores() {

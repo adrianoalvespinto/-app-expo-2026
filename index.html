@@ -39,11 +39,16 @@
   .admin-role-sel { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; background: #fff; }
   .last-access { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
   
-  nav { display: flex; gap: 32px; padding: 0 40px; border-bottom: 1px solid var(--border); background: #fff; overflow-x: auto; }
-  .atv-tab-content { display: none; }
-  .atv-tab-content.active { display: block; animation: fadeIn 0.3s ease; }
-  .unit-card-deep:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1) !important; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .edu-unit-row { background:#fff; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); overflow:hidden; }
+  .edu-unit-header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:600; background:rgba(0,0,0,0.02); }
+  .edu-unit-header:hover { background:rgba(0,0,0,0.04); }
+  .edu-list-content { display:none; padding:12px; border-top:1px solid var(--border); }
+  .edu-list-content.active { display:block; }
+  .edu-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .edu-table th { text-align:left; padding:8px 12px; color:var(--muted); font-size:11px; text-transform:uppercase; }
+  .edu-table td { padding:10px 12px; border-bottom:1px solid rgba(0,0,0,0.05); }
+  .edu-table tr:hover { background:rgba(0,0,0,0.02); cursor:pointer; }
+
 
   :root {
     --bg:        #f5f3ef;
@@ -1115,6 +1120,7 @@
         <div class="form-field full"><label>Nome do Educador</label><input type="text" id="fe-nome"></div>
         <div class="form-field full"><label>Especialidade / Linguagem</label><input type="text" id="fe-especialidade" placeholder="Ex: Artes Visuais, Marcenaria..."></div>
         <div class="form-field"><label>Unidade Fixa</label><select id="fe-unidade"></select></div>
+        <div class="form-field"><label>Data de Admissão</label><input type="date" id="fe-admissao"></div>
         <div class="form-field full"><label>Histórico de Unidades</label><textarea id="fe-historico" placeholder="Unidades por onde já passou..."></textarea></div>
       </div>
     </div>
@@ -3884,34 +3890,74 @@ async function loadEducadores() {
   const container = document.getElementById('educadores-container')
   container.innerHTML = '<div class="loading">Carregando educadores...</div>'
   const search = document.getElementById('search-educador').value.toLowerCase()
-  const unidade = document.getElementById('filter-educador-unidade').value
 
-  let q = db.from('educadores').select('*, unidades(nome)')
-  if (unidade) q = q.eq('unidade_id', unidade)
-  
-  const { data, error } = await q.order('nome')
+  const { data: edus, error } = await db.from('educadores').select('*, unidades(nome)').order('nome')
   if (error) { console.error(error); return }
-  allEducadores = data || []
+  allEducadores = edus || []
 
-  const filtered = allEducadores.filter(e => e.nome.toLowerCase().includes(search))
-  
-  if (!filtered.length) {
-    container.innerHTML = '<div class="no-data">Nenhum educador encontrado</div>'
-    return
-  }
+  // Agrupar por Unidade
+  const porUnidade = {}
+  allUnidades.forEach(u => porUnidade[u.id] = { nome: u.nome, equipe: [] })
+  porUnidade['outros'] = { nome: 'Sem Unidade Definida', equipe: [] }
 
-  container.innerHTML = `
-    <div class="cards-grid">
-      ${filtered.map(e => `
-        <div class="expo-card" onclick="openEducadorModal('${e.id}')">
-          <div style="font-size:12px; font-weight:600; color:var(--accent); margin-bottom:4px;">${e.unidades?.nome || '—'}</div>
-          <div class="card-title">${e.nome}</div>
-          <div style="font-size:13px; color:var(--text);">${e.especialidade || 'Sem especialidade'}</div>
+  allEducadores.forEach(e => {
+    const uid = e.unidade_id || 'outros'
+    if (porUnidade[uid] && e.nome.toLowerCase().includes(search)) {
+      porUnidade[uid].equipe.push(e)
+    }
+  })
+
+  let html = ''
+  Object.keys(porUnidade).forEach(uid => {
+    const u = porUnidade[uid]
+    if (u.equipe.length === 0 && search) return // Não mostra se filtrar e não tiver ninguém
+
+    const calcTempo = (data) => {
+        if (!data) return '—'
+        const admission = new Date(data)
+        const hoje = new Date()
+        let years = hoje.getFullYear() - admission.getFullYear()
+        let months = hoje.getMonth() - admission.getMonth()
+        if (months < 0 || (months === 0 && hoje.getDate() < admission.getDate())) { years--; months += 12; }
+        return years > 0 ? `${years}a ${months}m` : `${months} meses`
+    }
+
+    html += `
+      <div class="edu-unit-row">
+        <div class="edu-unit-header" onclick="this.nextElementSibling.classList.toggle('active')">
+          <span>🏛️ ${u.nome}</span>
+          <span style="font-size:12px; color:var(--muted)">${u.equipe.length} educadores</span>
         </div>
-      `).join('')}
-    </div>
-  `
+        <div class="edu-list-content">
+          <table class="edu-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Especialidade</th>
+                <th>Tempo de Casa</th>
+                <th>Histórico</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${u.equipe.map(e => `
+                <tr onclick="openEducadorModal('${e.id}')">
+                  <td style="font-weight:600">${e.nome}</td>
+                  <td>${e.especialidade || '—'}</td>
+                  <td>${calcTempo(e.data_admissao)}</td>
+                  <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted)">${e.historico_unidades || '—'}</td>
+                </tr>
+              `).join('')}
+              ${u.equipe.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:var(--muted)">Nenhum educador alocado</td></tr>' : ''}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `
+  })
+
+  container.innerHTML = html || '<div class="no-data">Nenhum educador encontrado</div>'
 }
+
 
 let activeEducadorId = null
 function openEducadorModal(id = null) {
@@ -3933,6 +3979,7 @@ function openEducadorModal(id = null) {
       document.getElementById('fe-nome').value = edu.nome
       document.getElementById('fe-especialidade').value = edu.especialidade || ''
       document.getElementById('fe-unidade').value = edu.unidade_id || ''
+      document.getElementById('fe-admissao').value = edu.data_admissao || ''
       document.getElementById('fe-historico').value = edu.historico_unidades || ''
     }
   } else {
@@ -3947,6 +3994,7 @@ async function saveEducador() {
     nome: document.getElementById('fe-nome').value,
     especialidade: document.getElementById('fe-especialidade').value,
     unidade_id: document.getElementById('fe-unidade').value || null,
+    data_admissao: document.getElementById('fe-admissao').value || null,
     historico_unidades: document.getElementById('fe-historico').value
   }
   if (!edu.nome) { alert('Nome é obrigatório'); return }

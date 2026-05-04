@@ -3375,11 +3375,14 @@ function detectarMudancas(antigo, novo, campos) {
 }
 
 async function registrarLog(acao, detalhes, exposicaoId = null) {
-  if (!currentProfile) return
+  // Tenta pegar o ID do perfil, senão pega do usuário logado direto no Supabase
+  const user = (await db.auth.getUser()).data.user
+  if (!user) return
+
   const log = {
-    user_id: currentProfile.id,
-    user_email: currentProfile.user_email,
-    user_name: currentProfile.full_name || currentProfile.user_email,
+    user_id: user.id,
+    user_email: user.email,
+    user_name: currentProfile?.full_name || user.email,
     acao,
     detalhes,
     exposicao_id: exposicaoId

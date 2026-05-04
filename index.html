@@ -750,34 +750,33 @@
       </div>
       
       <div class="painel-tabs" style="margin-bottom:20px;">
-        <div class="painel-tab active" data-atv-tab="lista">Programação</div>
-        <div class="painel-tab" data-atv-tab="equipe">Equipe de Educadores</div>
-      </div>
-
-      <!-- ABA: LISTA DE CURSOS -->
-      <div class="atv-tab-content active" id="atv-tab-lista">
-        <div class="page-header" style="margin-top:0; border-bottom:none">
-          <div class="page-title" style="font-size:16px">Minha Programação</div>
-          <button class="btn-add" id="btn-nova-atividade">+ Nova Atividade</button>
-        </div>
-        <div class="filters">
-          <input type="text" class="search-input" id="search-eta" placeholder="Buscar por título...">
-          <select class="filter-select" id="filter-eta-unidade"><option value="">Todas as unidades</option></select>
-        </div>
-        <div id="eta-cursos-container"><div class="loading">Carregando...</div></div>
+        <div class="painel-tab active" data-atv-tab="equipe">Equipe de Educadores</div>
+        <div class="painel-tab" data-atv-tab="festa">FestA!</div>
       </div>
 
       <!-- ABA: EQUIPE DE EDUCADORES -->
-      <div class="atv-tab-content" id="atv-tab-equipe">
+      <div class="atv-tab-content active" id="atv-tab-equipe">
+        <div class="kpi-grid" style="margin-bottom:24px">
+          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-total">0</div><div class="kpi-label">Total Educadores</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-capital">0</div><div class="kpi-label">Capital</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-interior">0</div><div class="kpi-label">Interior</div></div>
+        </div>
         <div class="page-header" style="margin-top:0; border-bottom:none">
-          <div class="page-title" style="font-size:16px">Gestão de Educadores Fixos</div>
+          <div class="page-title" style="font-size:16px">Gestão de Equipe Fixa</div>
           <button class="btn-add" id="btn-novo-educador">+ Novo Educador</button>
         </div>
         <div class="filters">
           <input type="text" class="search-input" id="search-educador" placeholder="Buscar educador...">
-          <select class="filter-select" id="filter-educador-unidade"><option value="">Todas as unidades</option></select>
         </div>
         <div id="educadores-container"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- ABA: FestA! -->
+      <div class="atv-tab-content" id="atv-tab-festa">
+        <div style="text-align:center; padding:80px 20px; background:#fff; border-radius:12px; border:1px dashed var(--border);">
+          <div style="font-family:'Fraunces', serif; font-size:48px; color:var(--primary); margin-bottom:16px;">FestA!</div>
+          <p style="color:var(--muted); max-width:500px; margin:0 auto;">Em breve: Gestão do Festival de Aprender. Um projeto anual em todas as unidades.</p>
+        </div>
       </div>
     </div>
 
@@ -3888,15 +3887,26 @@ async function saveAtividade() {
 
 async function loadEducadores() {
   const container = document.getElementById('educadores-container')
+  if(!container) return
   container.innerHTML = '<div class="loading">Carregando educadores...</div>'
   const search = document.getElementById('search-educador').value.toLowerCase()
 
-  const { data: edus, error } = await db.from('educadores').select('*, unidades(nome)').order('nome')
+  const { data: edus, error } = await db.from('educadores').select('*, unidades(*)').order('nome')
   if (error) { console.error(error); return }
   allEducadores = edus || []
 
+  // Calcular KPIs
+  const total = allEducadores.length
+  const capital = allEducadores.filter(e => e.unidades?.capital_interior === 'Capital').length
+  const interior = allEducadores.filter(e => e.unidades?.capital_interior === 'Interior').length
+
+  if (document.getElementById('kpi-edu-total')) document.getElementById('kpi-edu-total').textContent = total
+  if (document.getElementById('kpi-edu-capital')) document.getElementById('kpi-edu-capital').textContent = capital
+  if (document.getElementById('kpi-edu-interior')) document.getElementById('kpi-edu-interior').textContent = interior
+
   // Agrupar por Unidade
   const porUnidade = {}
+
   allUnidades.forEach(u => porUnidade[u.id] = { nome: u.nome, equipe: [] })
   porUnidade['outros'] = { nome: 'Sem Unidade Definida', equipe: [] }
 

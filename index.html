@@ -1976,7 +1976,14 @@ async function saveExposicao() {
   if (toInsert.length) await db.from('exposicao_colaboradores').insert(toInsert)
   closeExpModal()
   const acao = editingExpId ? 'editou_exposicao' : 'criou_exposicao'
-  const detalhe = editingExpId ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
+  let detalhe = editingExpId ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
+  
+  if (editingExpId) {
+    const antiga = allExposicoes.find(x => x.id === editingExpId)
+    const mudancas = detectarMudancas(antiga, payload, payload)
+    if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
+  }
+  
   registrarLog(acao, detalhe, expId)
   showToast(editingExpId ? 'Exposição atualizada!' : 'Exposição criada!')
   await loadExposicoes()
@@ -2176,7 +2183,14 @@ async function saveUnidade() {
   }
   
   closeUnitModal()
-  registrarLog(editingUnitId ? 'editou_unidade' : 'criou_unidade', `${editingUnitId ? 'Editou' : 'Criou'} a unidade "${nome}"`)
+  const acao = editingUnitId ? 'editou_unidade' : 'criou_unidade'
+  let detalhe = editingUnitId ? `Editou a unidade "${nome}"` : `Criou a unidade "${nome}"`
+  if (editingUnitId) {
+    const antiga = allUnidades.find(u => u.id === editingUnitId)
+    const mudancas = detectarMudancas(antiga, payload, payload)
+    if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
+  }
+  registrarLog(acao, detalhe)
   showToast('Unidade salva!')
   await loadBaseData()
   loadUnidades()
@@ -2753,7 +2767,14 @@ async function saveColaborador() {
     ? await db.from('colaboradores').update(payload).eq('id', editingColabId)
     : await db.from('colaboradores').insert(payload)
   if (error) { showToast('Erro: ' + error.message, true); return }
-  registrarLog(editingColabId ? 'editou_colaborador' : 'criou_colaborador', `${editingColabId ? 'Editou' : 'Criou'} o colaborador "${nome}"`)
+  const acao = editingColabId ? 'editou_colaborador' : 'criou_colaborador'
+  let detalhe = editingColabId ? `Editou o colaborador "${nome}"` : `Criou o colaborador "${nome}"`
+  if (editingColabId) {
+    const antigo = allColaboradores.find(c => c.id === editingColabId)
+    const mudancas = detectarMudancas(antigo, payload, payload)
+    if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
+  }
+  registrarLog(acao, detalhe)
   closeColabModal(); showToast(editingColabId ? 'Atualizado!' : 'Criado!'); await loadColaboradores()
 }
 
@@ -3333,16 +3354,37 @@ async function updateUsuarioPerfil(userId, novoPerfil) {
   showToast('Perfil atualizado com sucesso!')
 }
 // ── LOG DE ATIVIDADES ──
+function detectarMudancas(antigo, novo, campos) {
+  const mudancas = []
+  const nomes = {
+    titulo: 'Título', status: 'Status', unidade_id: 'Unidade', espaco_id: 'Espaço',
+    data_abertura: 'Abertura', data_encerramento: 'Encerramento', valor_estimado: 'Orçamento',
+    ano: 'Ano', semestre: 'Semestre', nome: 'Nome', especialidade: 'Especialidade'
+  }
+  for (const k in campos) {
+    const label = nomes[k] || k
+    let vAntigo = antigo ? antigo[k] : null
+    let vNovo = novo[k]
+    if (vAntigo === undefined || vAntigo === null) vAntigo = ''
+    if (vNovo === undefined || vNovo === null) vNovo = ''
+    if (String(vAntigo) !== String(vNovo)) {
+      mudancas.push(`${label}: "${vAntigo || '—'}" → "${vNovo || '—'}"`)
+    }
+  }
+  return mudancas.join(' | ')
+}
+
 async function registrarLog(acao, detalhes, exposicaoId = null) {
-  if (!currentUser) return
-  try {
-    await db.from('atividades_log').insert({
-      usuario_id: currentUser.id,
-      acao,
-      detalhes,
-      exposicao_id: exposicaoId || null
-    })
-  } catch (e) { console.warn('Erro ao registrar log:', e) }
+  if (!currentProfile) return
+  const log = {
+    user_id: currentProfile.id,
+    user_email: currentProfile.user_email,
+    user_name: currentProfile.full_name || currentProfile.user_email,
+    acao,
+    detalhes,
+    exposicao_id: exposicaoId
+  }
+  await db.from('atividades_log').insert(log)
 }
 
 function tempoRelativo(iso) {
@@ -3802,14 +3844,19 @@ async function saveAtividade() {
 
   let resError
   if (activeAtividadeId) {
+    const antiga = allAtividades.find(a => a.id === activeAtividadeId)
+    let detalhe = `Editou a atividade "${atv.titulo}"`
+    const mudancas = detectarMudancas(antiga, atv, atv)
+    if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
+    
     const { error } = await db.from('atividades_complementares').update(atv).eq('id', activeAtividadeId)
     resError = error
-    if (!error) registrarLog('editou', 'atividade', atv.titulo)
+    if (!error) registrarLog('editou_atividade', detalhe)
   } else {
     const { data, error } = await db.from('atividades_complementares').insert(atv).select()
     resError = error
     if (!error) {
-        registrarLog('criou', 'atividade', atv.titulo)
+        registrarLog('criou_atividade', `Criou a atividade "${atv.titulo}"`)
         activeAtividadeId = data[0].id
     }
   }
@@ -3902,11 +3949,16 @@ async function saveEducador() {
   if (!edu.nome) { alert('Nome é obrigatório'); return }
 
   if (activeEducadorId) {
+    const antigo = allEducadores.find(e => e.id === activeEducadorId)
+    let detalhe = `Editou o educador "${edu.nome}"`
+    const mudancas = detectarMudancas(antigo, edu, edu)
+    if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
+    
     const { error } = await db.from('educadores').update(edu).eq('id', activeEducadorId)
-    if (!error) registrarLog('editou', 'educador', edu.nome)
+    if (!error) registrarLog('editou_educador', detalhe)
   } else {
     const { error } = await db.from('educadores').insert(edu)
-    if (!error) registrarLog('criou', 'educador', edu.nome)
+    if (!error) registrarLog('criou_educador', `Criou o educador "${edu.nome}"`)
   }
   document.getElementById('modal-educador').style.display = 'none'
   loadEducadores()

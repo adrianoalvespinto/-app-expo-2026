@@ -4004,22 +4004,61 @@ function openEducadorModal(id = null) {
     const edu = allEducadores.find(e => e.id === id)
     if (edu) {
       document.getElementById('fe-nome').value = edu.nome
-      document.getElementById('fe-especialidade').value = edu.especialidade || ''
       document.getElementById('fe-unidade').value = edu.unidade_id || ''
       document.getElementById('fe-admissao').value = edu.data_admissao || ''
       document.getElementById('fe-historico').value = edu.historico_unidades || ''
+      
+      // Carregar as tags selecionadas
+      const selecionadas = edu.especialidade ? edu.especialidade.split(', ') : []
+      renderEduTags(selecionadas)
     }
   } else {
     title.textContent = 'Novo Educador'
     btnDel.style.display = 'none'
+    document.getElementById('fe-nome').value = ''
+    document.getElementById('fe-unidade').value = ''
+    document.getElementById('fe-admissao').value = ''
+    document.getElementById('fe-historico').value = ''
+    renderEduTags([])
   }
-  modal.style.display = 'flex'
+  document.getElementById('modal-educador').style.display = 'flex'
 }
 
+function renderEduTags(selecionadas) {
+  const container = document.getElementById('edu-tags-container')
+  if(!container) return
+  container.innerHTML = ESPECIALIDADES.map(tag => {
+    const isSel = selecionadas.includes(tag)
+    return `
+      <div class="edu-tag ${isSel ? 'active-tag' : ''}" onclick="toggleEduTag(this)" 
+           data-tag="${tag}"
+           style="padding:6px 14px; border:1px solid ${isSel ? 'var(--primary)' : 'var(--border)'}; 
+                  border-radius:20px; font-size:12px; cursor:pointer; 
+                  background:${isSel ? 'var(--primary)' : '#fff'}; 
+                  color:${isSel ? '#fff' : 'var(--text)'}; transition:0.2s">
+        ${tag}
+      </div>
+    `
+  }).join('')
+}
+
+function toggleEduTag(el) {
+  const active = el.classList.toggle('active-tag')
+  el.style.background = active ? 'var(--primary)' : '#fff'
+  el.style.color = active ? '#fff' : 'var(--text)'
+  el.style.borderColor = active ? 'var(--primary)' : 'var(--border)'
+}
+
+
 async function saveEducador() {
+  const tagsArr = []
+  document.querySelectorAll('#edu-tags-container .edu-tag.active-tag').forEach(t => {
+    tagsArr.push(t.getAttribute('data-tag'))
+  })
+
   const edu = {
     nome: document.getElementById('fe-nome').value,
-    especialidade: document.getElementById('fe-especialidade').value,
+    especialidade: tagsArr.join(', '),
     unidade_id: document.getElementById('fe-unidade').value || null,
     data_admissao: document.getElementById('fe-admissao').value || null,
     historico_unidades: document.getElementById('fe-historico').value

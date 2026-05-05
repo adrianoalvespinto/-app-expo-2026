@@ -1979,7 +1979,6 @@ async function saveExposicao() {
     })
   })
   if (toInsert.length) await db.from('exposicao_colaboradores').insert(toInsert)
-  closeExpModal()
   const acao = editingExpId ? 'editou_exposicao' : 'criou_exposicao'
   let detalhe = editingExpId ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
   
@@ -1990,6 +1989,7 @@ async function saveExposicao() {
   }
   
   registrarLog(acao, detalhe, expId)
+  closeExpModal()
   showToast(editingExpId ? 'Exposição atualizada!' : 'Exposição criada!')
   await loadExposicoes()
 }
@@ -2187,7 +2187,6 @@ async function saveUnidade() {
     if (insErr) { showToast('Erro ao salvar espaços: ' + insErr.message, true); return }
   }
   
-  closeUnitModal()
   const acao = editingUnitId ? 'editou_unidade' : 'criou_unidade'
   let detalhe = editingUnitId ? `Editou a unidade "${nome}"` : `Criou a unidade "${nome}"`
   if (editingUnitId) {
@@ -2196,6 +2195,7 @@ async function saveUnidade() {
     if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
   }
   registrarLog(acao, detalhe)
+  closeUnitModal()
   showToast('Unidade salva!')
   await loadBaseData()
   loadUnidades()

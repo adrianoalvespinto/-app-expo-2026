@@ -3380,19 +3380,22 @@ function detectarMudancas(antigo, novo, campos) {
 }
 
 async function registrarLog(acao, detalhes, exposicaoId = null) {
-  // Tenta pegar o ID do perfil, senão pega do usuário logado direto no Supabase
-  const user = (await db.auth.getUser()).data.user
+  const { data: { user } } = await db.auth.getUser()
   if (!user) return
 
   const log = {
-    user_id: user.id,
-    user_email: user.email,
-    user_name: currentProfile?.full_name || user.email,
+    usuario_id: user.id,
     acao,
     detalhes,
-    exposicao_id: exposicaoId
+    exposicao_id: exposicaoId || null
   }
-  await db.from('atividades_log').insert(log)
+  
+  // Opcional: Adicionar campos de fallback se a tabela os tiver
+  // log.user_email = user.email
+  // log.user_name = currentProfile?.nome || user.email
+
+  const { error } = await db.from('atividades_log').insert(log)
+  if (error) console.warn('Erro ao gravar log:', error.message)
 }
 
 function tempoRelativo(iso) {

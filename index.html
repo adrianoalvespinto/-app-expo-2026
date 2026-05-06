@@ -39,7 +39,10 @@
   .admin-role-sel { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px; background: #fff; }
   .last-access { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
   
+  .header-section { grid-column: 1 / -1; background: var(--bg); padding: 8px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; border-radius: 4px; margin: 16px 0 8px 0; color: var(--accent); border-left: 4px solid var(--accent); }
+  
   .atv-tab-content { display: none !important; }
+
   .atv-tab-content.active { display: block !important; animation: fadeIn 0.3s ease; }
   
   .edu-unit-row { background:#fff; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); overflow:hidden; }
@@ -757,7 +760,9 @@
         <div class="painel-tab active" data-atv-tab="equipe">Equipe de Educadores</div>
         <div class="painel-tab" data-atv-tab="atividades">Cursos e Oficinas</div>
         <div class="painel-tab" data-atv-tab="festa">FestA!</div>
+        <div class="painel-tab" data-atv-tab="visitas">Visitas Mediadas</div>
       </div>
+
 
       <!-- ABA: EQUIPE DE EDUCADORES -->
       <div class="atv-tab-content active" id="atv-tab-equipe">
@@ -796,6 +801,20 @@
           <div class="ano-tabs-container" id="festa-ano-tabs"></div>
         </div>
         <div id="festa-container"></div>
+      </div>
+
+      <!-- ABA: VISITAS MEDIADAS -->
+      <div class="atv-tab-content" id="atv-tab-visitas">
+        <div class="kpi-grid" style="margin-bottom:24px">
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-impacto">0</div><div class="kpi-label">Alunos Impactados</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-nota">0.0</div><div class="kpi-label">Nota Média (Experiência)</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-material">0%</div><div class="kpi-label">Uso de Materiais</div></div>
+        </div>
+        <div class="page-header" style="margin-top:0; border-bottom:none">
+          <div class="page-title" style="font-size:16px">Avaliações de Visitas Mediadas</div>
+          <button class="btn-add" onclick="openVisitaModal()">+ Registrar Avaliação</button>
+        </div>
+        <div id="visitas-container" style="background:#fff; border-radius:10px; border:1px solid var(--border); overflow:hidden"></div>
       </div>
     </div>
 
@@ -4106,8 +4125,108 @@ document.querySelectorAll('[data-atv-tab]').forEach(tab => {
     if (page === 'atividades') loadAtividadesComplementares()
     if (page === 'equipe') loadEducadores()
     if (page === 'festa') loadFesta()
+    if (page === 'visitas') loadVisitas()
   }
 })
+
+function toggleVisitaField(id, val) {
+  document.getElementById(id).style.display = val === 'true' ? 'block' : 'none'
+}
+
+async function loadVisitas() {
+  const container = document.getElementById('visitas-container')
+  if(!container) return
+  container.innerHTML = '<div class="loading">Carregando relatórios...</div>'
+
+  const { data, error } = await db.from('visitas_mediadas').select('*, unidades(nome), exposicoes(titulo)').order('created_at', { ascending: false })
+  if (error) { console.error(error); return }
+
+  // KPIs Profissionais (Highlights)
+  let totalPublico = 0
+  let totalMediadas = 0
+  let totalIndireto = 0
+  
+  data.forEach(v => {
+    totalPublico += (v.presencas_totais || 0)
+    totalMediadas += (v.qtd_alunos_sala || 0) // Usaremos qtd_alunos_sala para medias
+    totalIndireto += (v.qtd_alunos_outros || 0) // Usaremos qtd_alunos_outros para indiretos
+  })
+
+  document.getElementById('kpi-visitas-impacto').textContent = totalPublico.toLocaleString()
+  document.getElementById('kpi-visitas-nota').textContent = totalMediadas.toLocaleString()
+  document.getElementById('kpi-visitas-material').textContent = totalIndireto.toLocaleString()
+  
+  // Nomes dos KPIs mais profissionais
+  document.querySelectorAll('#atv-tab-visitas .kpi-label')[0].textContent = "Presenças Totais (2025)"
+  document.querySelectorAll('#atv-tab-visitas .kpi-label')[1].textContent = "Visitas Mediadas"
+  document.querySelectorAll('#atv-tab-visitas .kpi-label')[2].textContent = "Impacto Indireto"
+
+  container.innerHTML = `
+    <table class="edu-table">
+      <thead>
+        <tr>
+          <th>Unidade / Exposição</th>
+          <th>Público Total</th>
+          <th>Mediadas</th>
+          <th>Integrada</th>
+          <th>Impacto Indireto</th>
+          <th>Qualitativo</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(v => `
+          <tr onclick="alert('Detalhes: ${v.cidades_atendidas || 'Não informado'}')">
+            <td>
+              <div style="font-weight:600; color:var(--primary)">${v.exposicoes?.titulo || '—'}</div>
+              <div style="font-size:11px; color:var(--muted)">${v.unidades?.nome || '—'}</div>
+            </td>
+            <td style="font-weight:600">${v.presencas_totais?.toLocaleString() || 0}</td>
+            <td>${v.qtd_alunos_sala?.toLocaleString() || 0}</td>
+            <td>${v.presencas_integradas?.toLocaleString() || 0}</td>
+            <td style="color:var(--accent)">${v.qtd_alunos_outros?.toLocaleString() || 0}</td>
+            <td>⭐ ${((v.nota_experiencia + v.nota_relevancia)/2).toFixed(1)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `
+}
+
+function openVisitaModal() {
+  const selU = document.getElementById('fv-unidade')
+  const selE = document.getElementById('fv-exposicao')
+  
+  selU.innerHTML = allUnidades.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')
+  selE.innerHTML = allExposicoes.map(e => `<option value="${e.id}">${e.titulo}</option>`).join('')
+  
+  document.getElementById('modal-visita').style.display = 'flex'
+}
+
+async function saveVisita() {
+  const v = {
+    unidade_id: document.getElementById('fv-unidade').value,
+    exposicao_id: document.getElementById('fv-exposicao').value,
+    presencas_totais: parseInt(document.getElementById('fv-total-expo').value) || 0,
+    dias_visitacao: parseInt(document.getElementById('fv-dias-visita').value) || 0,
+    qtd_alunos_sala: parseInt(document.getElementById('fv-qtd-mediadas').value) || 0, // Visitas mediadas
+    qtd_alunos_outros: parseInt(document.getElementById('fv-qtd-indiretos').value) || 0, // Indiretos
+    presencas_integradas: parseInt(document.getElementById('fv-integradas-total').value) || 0,
+    qtd_acoes_integradas: parseInt(document.getElementById('fv-integradas-qtd').value) || 0,
+    cidades_atendidas: document.getElementById('fv-abrangencia').value,
+    nota_experiencia: parseInt(document.getElementById('fv-nota-exp-real').value),
+    nota_relevancia: parseInt(document.getElementById('fv-nota-rel').value),
+    comentarios: document.getElementById('fv-comentarios').value
+  }
+
+  const { error } = await db.from('visitas_mediadas').insert(v)
+  if (error) { alert('Erro ao salvar: ' + error.message); return }
+
+  registrarLog('registrou_relatorio_educativo', `Registrou relatório consolidado para expo.`)
+  document.getElementById('modal-visita').style.display = 'none'
+  loadVisitas()
+}
+
+
 
 const ESPECIALIDADES = ['Artes Visuais', 'Artes Cênicas', 'Música', 'Literatura', 'Tecnologias e Artes', 'Meio Ambiente', 'Saúde e Bem-estar', 'Turismo e Lazer', 'Alimentação']
 let festaAnoAtivo = 2026

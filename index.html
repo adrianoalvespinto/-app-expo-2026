@@ -626,17 +626,44 @@
     </div>
   </header>
   <nav>
-    <div class="nav-item active" data-page="visao-geral">Visão Geral</div>
-    <div class="nav-item" data-page="timeline">Timeline</div>
-    <div class="nav-item" data-page="educativo">Educativo</div>
-    <div class="nav-item" data-page="colaboradores">Colaboradores</div>
-    <div class="nav-item" data-page="eta-cursos">Cursos e Oficinas</div>
-    <div class="nav-item" data-page="unidades">Unidades</div>
-    <div class="nav-item" data-page="admin" id="nav-admin">Admin</div>
+    <div class="nav-item active" onclick="showPage('geral')">Visão Geral</div>
+    <div class="nav-item" onclick="showPage('exposicoes')">Exposições</div>
+    <div class="nav-item" onclick="showPage('unidades')">Unidades</div>
+    <div class="nav-item" onclick="showPage('educativo')">Educativo</div>
+    <div class="nav-item" onclick="showPage('colaboradores')">Colaboradores</div>
+    <div class="nav-item" onclick="showPage('atividades')">Cursos e Oficinas <small>(ETA)</small></div>
+    <div class="nav-item isAdmin" onclick="showPage('admin')" style="display:none">Dash Admin</div>
   </nav>
   <main>
-    <!-- VISÃO GERAL -->
-    <div class="page active" id="page-visao-geral">
+    <!-- PAGINA: GERAL / DASHBOARD -->
+    <div class="page active" id="page-geral">
+      <div class="page-header">
+        <div class="page-title">Visão Geral <em>Dashboard</em></div>
+      </div>
+      
+      <div id="dash-filtros" class="ano-tabs"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-value" id="kpi-total-expos">0</div><div class="kpi-label">Exposições Ativas</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-total-unidades">0</div><div class="kpi-label">Unidades Participantes</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-investimento-total">R$ 0</div><div class="kpi-label">Total Investido</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-media-geral">0%</div><div class="kpi-label">Evolução Geral</div></div>
+      </div>
+
+      <div class="dash-row">
+        <div class="dash-card">
+          <div class="dash-title">Próximas Aberturas <small>Calendário de Lançamento</small></div>
+          <div id="dash-aberturas-list" class="cards-grid"></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-title">Status da Rede</div>
+          <div id="dash-status-chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPOSIÇÕES -->
+    <div class="page" id="page-exposicoes">
       <div class="page-header">
         <div class="page-title"><small>Ano fiscal</small>Exposições <span id="ano-atual"></span></div>
         <div style="display:flex; gap:10px;">
@@ -685,19 +712,6 @@
       <div id="cards-container" class="cards-grid"><div class="loading">Carregando exposições...</div></div>
     </div>
 
-    <!-- TIMELINE -->
-    <div class="page" id="page-timeline">
-      <div class="page-header" style="margin-bottom:0">
-        <div class="page-title"><small>Planejamento</small>Timeline de Exposições <span class="ano-atual-timeline"></span></div>
-      </div>
-      <div class="ano-tabs ano-tabs-container">
-        <!-- preenchido dinamicamente por renderAnoTabs() -->
-      </div>
-      <div id="timeline-container" class="timeline-wrapper">
-        <div class="loading">Carregando timeline...</div>
-      </div>
-    </div>
-
     <!-- COLABORADORES -->
     <div class="page" id="page-colaboradores">
       <div class="page-header">
@@ -725,14 +739,6 @@
       <div id="colaboradores-container"><div class="loading">Carregando...</div></div>
     </div>
 
-    <!-- EDUCATIVO -->
-    <div class="page" id="page-educativo">
-      <div class="page-header">
-        <div class="page-title"><small>Equipe por Exposição</small>Dashboard Educativo</div>
-      </div>
-      <div id="educativo-container"><div class="loading">Carregando...</div></div>
-    </div>
-
     <!-- UNIDADES -->
     <div class="page" id="page-unidades">
       <div class="page-header">
@@ -750,19 +756,50 @@
       <div id="unidades-container"><div class="loading">Carregando...</div></div>
     </div>
 
-    <!-- CURSOS E OFICINAS -->
-    <div class="page" id="page-eta-cursos">
+    <!-- PAGINA: EDUCATIVO (EXPOSIÇÕES) -->
+    <div class="page" id="page-educativo">
       <div class="page-header">
-        <div class="page-title"><small>Programação Complementar</small>Cursos e Oficinas</div>
-      </div>
-      
-      <div class="painel-tabs" style="margin-bottom:20px;">
-        <div class="painel-tab active" data-atv-tab="equipe">Equipe de Educadores</div>
-        <div class="painel-tab" data-atv-tab="atividades">Cursos e Oficinas</div>
-        <div class="painel-tab" data-atv-tab="festa">FestA!</div>
-        <div class="painel-tab" data-atv-tab="visitas">Visitas Mediadas</div>
+        <div class="page-title">Dashboard Educativo <small>Exposições</small></div>
       </div>
 
+      <div class="ano-tabs" id="edu-ano-tabs" style="margin-top:16px;"></div>
+
+      <div class="painel-tabs" style="margin-bottom:20px;">
+        <div class="painel-tab active" data-edu-tab="equipe">Equipe de Educadores</div>
+        <div class="painel-tab" data-edu-tab="visitas">Visitas Mediadas (Relatórios)</div>
+      </div>
+
+      <!-- ABA: EQUIPE EDUCADORES -->
+      <div class="edu-tab-content active" id="edu-tab-equipe">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-capital">0</div><div class="kpi-label">Educadores Capital</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-interior">0</div><div class="kpi-label">Educadores Interior</div></div>
+        </div>
+        <div id="equipe-educativo-list"></div>
+      </div>
+
+      <!-- ABA: VISITAS MEDIADAS -->
+      <div class="edu-tab-content" id="edu-tab-visitas">
+        <div class="kpi-grid" style="margin-bottom:24px">
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-impacto">0</div><div class="kpi-label">Presenças Totais</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-nota">0.0</div><div class="kpi-label">Visitas Mediadas</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-material">0%</div><div class="kpi-label">Impacto Indireto</div></div>
+        </div>
+        <div id="visitas-automatic-list"></div>
+      </div>
+    </div>
+
+    <!-- PAGINA: ATIVIDADES (ETA / CURSOS E OFICINAS) -->
+    <div class="page" id="page-atividades">
+      <div class="page-header">
+        <div class="page-title">Cursos e Oficinas <small>ETA / Ações Educativas Complementares</small></div>
+      </div>
+
+      <div class="painel-tabs" style="margin-bottom:20px; margin-top:20px;">
+        <div class="painel-tab active" data-atv-tab="equipe">Equipe ETA</div>
+        <div class="painel-tab" data-atv-tab="atividades">Banco de Atividades (Cards)</div>
+        <div class="painel-tab" data-atv-tab="festa">FestA!</div>
+      </div>
 
       <!-- ABA: EQUIPE DE EDUCADORES -->
       <div class="atv-tab-content active" id="atv-tab-equipe">
@@ -796,25 +833,12 @@
 
       <!-- ABA: FestA! -->
       <div class="atv-tab-content" id="atv-tab-festa">
-        <div class="page-header" style="margin-top:0; border-bottom:none">
-          <div class="page-title" style="font-size:16px">Festival de Aprender</div>
-          <div class="ano-tabs-container" id="festa-ano-tabs"></div>
+        <div class="ano-tabs" style="margin-bottom:16px;">
+          <div class="ano-tab active" onclick="loadFesta(2026)">2026</div>
+          <div class="ano-tab" onclick="loadFesta(2027)">2027</div>
+          <div class="ano-tab" onclick="loadFesta(2028)">2028</div>
         </div>
         <div id="festa-container"></div>
-      </div>
-
-      <!-- ABA: VISITAS MEDIADAS -->
-      <div class="atv-tab-content" id="atv-tab-visitas">
-        <div class="kpi-grid" style="margin-bottom:24px">
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-impacto">0</div><div class="kpi-label">Alunos Impactados</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-nota">0.0</div><div class="kpi-label">Nota Média (Experiência)</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-material">0%</div><div class="kpi-label">Uso de Materiais</div></div>
-        </div>
-        <div class="page-header" style="margin-top:0; border-bottom:none">
-          <div class="page-title" style="font-size:16px">Avaliações de Visitas Mediadas</div>
-          <button class="btn-add" onclick="openVisitaModal()">+ Registrar Avaliação</button>
-        </div>
-        <div id="visitas-container" style="background:#fff; border-radius:10px; border:1px solid var(--border); overflow:hidden"></div>
       </div>
     </div>
 
@@ -4087,7 +4111,6 @@ async function saveEducador() {
     historico_unidades: document.getElementById('fe-historico').value
   }
   if (!edu.nome) { alert('Nome é obrigatório'); return }
-
   if (activeEducadorId) {
     const antigo = allEducadores.find(e => e.id === activeEducadorId)
     let detalhe = `Editou o educador "${edu.nome}"`

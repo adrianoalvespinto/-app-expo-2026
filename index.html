@@ -41,9 +41,8 @@
   
   .header-section { grid-column: 1 / -1; background: var(--bg); padding: 8px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; border-radius: 4px; margin: 16px 0 8px 0; color: var(--accent); border-left: 4px solid var(--accent); }
   
-  .atv-tab-content { display: none !important; }
-
-  .atv-tab-content.active { display: block !important; animation: fadeIn 0.3s ease; }
+  .atv-tab-content, .edu-tab-content { display: none !important; }
+  .atv-tab-content.active, .edu-tab-content.active { display: block !important; animation: fadeIn 0.3s ease; }
   
   .edu-unit-row { background:#fff; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); overflow:hidden; }
   .edu-unit-header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:600; background:rgba(0,0,0,0.02); }
@@ -205,7 +204,6 @@
     height: 32px; border-radius: 6px; position: absolute; pointer-events: auto; cursor: pointer;
     font-size: 11px; color: #fff; display: flex; align-items: center; padding: 0 10px;
     font-weight: 500; transition: transform 0.15s, box-shadow 0.15s; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  }
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   }
   .timeline-bar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 5; }
@@ -626,61 +624,36 @@
     </div>
   </header>
   <nav>
-    <div class="nav-item active" onclick="showPage('geral')">Visão Geral</div>
-    <div class="nav-item" onclick="showPage('exposicoes')">Exposições</div>
-    <div class="nav-item" onclick="showPage('unidades')">Unidades</div>
-    <div class="nav-item" onclick="showPage('educativo')">Educativo</div>
-    <div class="nav-item" onclick="showPage('colaboradores')">Colaboradores</div>
-    <div class="nav-item" onclick="showPage('atividades')">Cursos e Oficinas <small>(ETA)</small></div>
-    <div class="nav-item isAdmin" onclick="showPage('admin')" style="display:none">Dash Admin</div>
+    <div class="nav-item active" data-page="geral" onclick="showPage('geral')">Visão Geral</div>
+    <div class="nav-item" data-page="timeline" onclick="showPage('timeline')">Timeline</div>
+    <div class="nav-item" data-page="aberturas" onclick="showPage('aberturas')">Calendário</div>
+    <div class="nav-item" data-page="unidades" onclick="showPage('unidades')">Unidades</div>
+    <div class="nav-item" data-page="educativo" onclick="showPage('educativo')">Educativo</div>
+    <div class="nav-item" data-page="colaboradores" onclick="showPage('colaboradores')">Colaboradores</div>
+    <div class="nav-item" data-page="atividades" onclick="showPage('atividades')">Cursos e Oficinas <small>(ETA)</small></div>
+    <div class="nav-item isAdmin" id="nav-admin" data-page="admin" onclick="showPage('admin')" style="display:none">Dash Admin</div>
   </nav>
   <main>
     <!-- PAGINA: GERAL / DASHBOARD -->
     <div class="page active" id="page-geral">
       <div class="page-header">
-        <div class="page-title">Visão Geral <em>Dashboard</em></div>
-      </div>
-      
-      <div id="dash-filtros" class="ano-tabs"></div>
-
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-value" id="kpi-total-expos">0</div><div class="kpi-label">Exposições Ativas</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="kpi-total-unidades">0</div><div class="kpi-label">Unidades Participantes</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="kpi-investimento-total">R$ 0</div><div class="kpi-label">Total Investido</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="kpi-media-geral">0%</div><div class="kpi-label">Evolução Geral</div></div>
-      </div>
-
-      <div class="dash-row">
-        <div class="dash-card">
-          <div class="dash-title">Próximas Aberturas <small>Calendário de Lançamento</small></div>
-          <div id="dash-aberturas-list" class="cards-grid"></div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-title">Status da Rede</div>
-          <div id="dash-status-chart"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- EXPOSIÇÕES -->
-    <div class="page" id="page-exposicoes">
-      <div class="page-header">
-        <div class="page-title"><small>Ano fiscal</small>Exposições <span id="ano-atual"></span></div>
+        <div class="page-title">Visão Geral <span id="ano-atual"></span></div>
         <div style="display:flex; gap:10px;">
           <button class="btn-add" id="btn-exportar-pdf" style="background:var(--muted)" onclick="exportarCaderno()">📄 Caderno PDF</button>
           <button class="btn-add" id="btn-dashboard-premium" style="background:var(--accent2)" onclick="openBalancoAno()">📊 Balanço Executivo</button>
           <button class="btn-add" id="btn-nova-exposicao">+ Nova Exposição</button>
         </div>
       </div>
-      <div class="ano-tabs ano-tabs-container">
-        <!-- preenchido dinamicamente por renderAnoTabs() -->
-      </div>
+      
+      <div class="ano-tabs ano-tabs-container"></div>
+      
       <div class="kpi-grid" id="kpi-grid">
         <div class="kpi-card"><div class="kpi-value" id="kpi-total">—</div><div class="kpi-label">Exposições</div><div class="kpi-sub" id="kpi-total-sub"></div></div>
         <div class="kpi-card"><div class="kpi-value" id="kpi-ativas">—</div><div class="kpi-label">Em andamento</div><div class="kpi-sub" id="kpi-ativas-sub"></div></div>
         <div class="kpi-card"><div class="kpi-value" id="kpi-orcamento">—</div><div class="kpi-label">Orçamento total previsto</div><div class="kpi-sub" id="kpi-orcamento-sub"></div></div>
         <div class="kpi-card"><div class="kpi-value" id="kpi-proximas">—</div><div class="kpi-label">Próximas aberturas</div><div class="kpi-sub" id="kpi-proximas-sub"></div></div>
       </div>
+
       <div class="filters">
         <input type="text" class="search-input" id="search" placeholder="Buscar por título ou curador...">
         
@@ -704,12 +677,27 @@
 
         <select class="filter-select" id="filter-unidade"><option value="">Todas as unidades</option></select>
         <select class="filter-select" id="filter-assistente"><option value="">Todos os assistentes</option></select>
-        <select class="filter-select" id="filter-semestre">
-          <option value="">Ambos os semestres</option>
-          <option>1o Semestre</option><option>2o Semestre</option>
-        </select>
+        <select class="filter-select" id="filter-semestre"><option value="">Ambos os semestres</option><option>1o Semestre</option><option>2o Semestre</option></select>
       </div>
+
       <div id="cards-container" class="cards-grid"><div class="loading">Carregando exposições...</div></div>
+    </div>
+
+    <!-- PAGINA: TIMELINE -->
+    <div class="page" id="page-timeline">
+      <div class="page-header">
+        <div class="page-title">Cronograma Geral <small>Exposições <span class="ano-atual-timeline"></span></small></div>
+      </div>
+      <div class="ano-tabs ano-tabs-container" style="margin-bottom:20px;"></div>
+      <div id="timeline-container"><div class="loading">Carregando timeline...</div></div>
+    </div>
+
+    <!-- PAGINA: CALENDARIO -->
+    <div class="page" id="page-aberturas">
+      <div class="page-header">
+        <div class="page-title">Calendário de Aberturas <small>Projetos em andamento</small></div>
+      </div>
+      <div id="aberturas-container" class="aberturas-wrapper"><div class="loading">Carregando calendário...</div></div>
     </div>
 
     <!-- COLABORADORES -->
@@ -765,25 +753,26 @@
       <div class="ano-tabs" id="edu-ano-tabs" style="margin-top:16px;"></div>
 
       <div class="painel-tabs" style="margin-bottom:20px;">
-        <div class="painel-tab active" data-edu-tab="equipe">Equipe de Educadores</div>
+        <div class="painel-tab active" data-edu-tab="equipe">Equipe Educativa</div>
         <div class="painel-tab" data-edu-tab="visitas">Visitas Mediadas (Relatórios)</div>
       </div>
 
-      <!-- ABA: EQUIPE EDUCADORES -->
+      <!-- ABA: EQUIPE EDUCATIVA -->
       <div class="edu-tab-content active" id="edu-tab-equipe">
-        <div class="kpi-grid">
-          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-capital">0</div><div class="kpi-label">Educadores Capital</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-edu-interior">0</div><div class="kpi-label">Educadores Interior</div></div>
-        </div>
         <div id="equipe-educativo-list"></div>
       </div>
 
       <!-- ABA: VISITAS MEDIADAS -->
       <div class="edu-tab-content" id="edu-tab-visitas">
+        <div class="ano-tabs" style="margin-bottom:16px;">
+          <div class="ano-tab" id="tab-visitas-2024" onclick="loadVisitasMediadas(2024)">2024</div>
+          <div class="ano-tab" id="tab-visitas-2025" onclick="loadVisitasMediadas(2025)">2025</div>
+          <div class="ano-tab active" id="tab-visitas-2026" onclick="loadVisitasMediadas(2026)">2026</div>
+        </div>
         <div class="kpi-grid" style="margin-bottom:24px">
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-impacto">0</div><div class="kpi-label">Presenças Totais</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-nota">0.0</div><div class="kpi-label">Visitas Mediadas</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-material">0%</div><div class="kpi-label">Impacto Indireto</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-geral">0</div><div class="kpi-label">Total Presenças (Geral)</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-presencas">0</div><div class="kpi-label">Visitas Mediadas</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-visitas-integradas">0</div><div class="kpi-label">Presenças Integradas</div></div>
         </div>
         <div id="visitas-automatic-list"></div>
       </div>
@@ -1063,6 +1052,97 @@
   </div>
 </div>
 
+<!-- MODAL VISITAS MEDIADAS -->
+<div class="modal-overlay" id="modal-visitas">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-visitas-title">Relatório de Visitas Mediadas</div>
+      <button class="modal-close" onclick="document.getElementById('modal-visitas').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fv-exposicao-id">
+      <input type="hidden" id="fv-unidade-id">
+      
+      <div class="form-section">
+        <div class="form-section-title">1. Indicadores de Público e Impacto</div>
+        
+        <!-- KPIs de Destaque no Topo do Modal -->
+        <div class="form-grid" style="margin-bottom:20px; gap:8px;">
+          <div style="background:rgba(var(--accent-rgb), 0.08); border-radius:12px; padding:12px; border:1px solid var(--accent); text-align:center">
+             <div style="font-size:10px; text-transform:uppercase; font-weight:700; color:var(--accent); margin-bottom:4px">Público Total Geral</div>
+             <input type="number" id="fv-publico-total-geral" placeholder="0" style="font-size:20px; font-weight:700; text-align:center; border:none; background:transparent; width:100%">
+          </div>
+          <div style="background:var(--bg-alt); border-radius:12px; padding:12px; border:1px solid var(--border); text-align:center">
+             <div style="font-size:10px; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:4px">Visitas Mediadas</div>
+             <input type="number" id="fv-presencas-totais" style="font-size:20px; font-weight:700; text-align:center; border:none; background:transparent; width:100%; color:var(--text)">
+          </div>
+          <div style="background:var(--bg-alt); border-radius:12px; padding:12px; border:1px solid var(--border); text-align:center">
+             <div style="font-size:10px; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:4px">Ações Integradas</div>
+             <input type="number" id="fv-presencas-integradas" style="font-size:20px; font-weight:700; text-align:center; border:none; background:transparent; width:100%; color:var(--text)">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field"><label>Público Agendado</label><input type="number" id="fv-presencas-agendadas" placeholder="0"></div>
+          <div class="form-field"><label>Espontâneo Mediado</label><input type="number" id="fv-presencas-espontaneas" placeholder="0"></div>
+          <div class="form-field"><label>Estudantes Impactados (Direto)</label><input type="number" id="fv-estudantes-impactados" placeholder="0"></div>
+          <div class="form-field"><label>Ônibus Contratados</label><input type="number" id="fv-onibus-contratados" placeholder="0"></div>
+          <div class="form-field"><label>Dias de Visitação</label><input type="number" id="fv-dias-visitacao"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">2. Matriz de Atividades Transversais</div>
+        <div class="form-grid" style="grid-template-columns: 1fr 100px 100px; gap:6px; align-items:center;">
+          <div style="font-weight:600; font-size:11px;">Tipo de Ação</div>
+          <div style="font-weight:600; font-size:11px; text-align:center;">Qtd</div>
+          <div style="font-weight:600; font-size:11px; text-align:center;">Público</div>
+          
+          <div style="font-size:12px;">Oficinas / Workshops</div>
+          <input type="number" class="fv-acao-qtd" data-tipo="oficina" placeholder="0">
+          <input type="number" class="fv-acao-pub" data-tipo="oficina" placeholder="0">
+
+          <div style="font-size:12px;">Cursos / Formações</div>
+          <input type="number" class="fv-acao-qtd" data-tipo="curso" placeholder="0">
+          <input type="number" class="fv-acao-pub" data-tipo="curso" placeholder="0">
+
+          <div style="font-size:12px;">Bate-papos / Palestras</div>
+          <input type="number" class="fv-acao-qtd" data-tipo="conversa" placeholder="0">
+          <input type="number" class="fv-acao-pub" data-tipo="conversa" placeholder="0">
+
+          <div style="font-size:12px;">Performance / Interv.</div>
+          <input type="number" class="fv-acao-qtd" data-tipo="performance" placeholder="0">
+          <input type="number" class="fv-acao-pub" data-tipo="performance" placeholder="0">
+
+          <div style="font-size:12px;">Outros</div>
+          <input type="number" class="fv-acao-qtd" data-tipo="outros" placeholder="0">
+          <input type="number" class="fv-acao-pub" data-tipo="outros" placeholder="0">
+        </div>
+        <div class="form-grid" style="margin-top:16px;">
+           <div class="form-field"><label>Qtd Instituições Atendidas</label><input type="number" id="fv-instituicoes"></div>
+           <div class="form-field full"><label>Cidades Atendidas (separadas por vírgula)</label><input type="text" id="fv-cidades" placeholder="Ex: Santos, Guarujá, Bertioga..."></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">3. Avaliação e Impacto</div>
+        <div class="form-grid">
+          <div class="form-field"><label>Nota Experiência (1 a 10)</label><input type="number" min="1" max="10" id="fv-nota-experiencia"></div>
+          <div class="form-field"><label>Nota Relevância (1 a 10)</label><input type="number" min="1" max="10" id="fv-nota-relevancia"></div>
+          <div class="form-field full"><label>Observações Relevantes / Pontos de Atenção</label><textarea id="fv-comentarios" style="min-height:50px" placeholder="Descreva aqui os destaques da mediação..."></textarea></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding-top:12px;">
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-cancel" onclick="document.getElementById('modal-visitas').classList.remove('open')">Cancelar</button>
+        <button class="btn-save" onclick="saveVisitaMediada()">Salvar Resultados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL COLABORADOR -->
 <div class="modal-overlay" id="modal-colaborador">
   <div class="modal" style="max-width:480px">
@@ -1240,8 +1320,19 @@
 </div>
 
 <script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  console.error('GLOBAL ERROR:', msg, 'at', lineNo, ':', columnNo, error);
+  return false;
+};
+
 const SUPABASE_URL = 'https://ejxdsnfoqfjivqquqfri.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqeGRzbmZvcWZqaXZxcXVxZnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTU2MTUsImV4cCI6MjA5MDM3MTYxNX0.GIFL4-ZawJXjii2-grilFwMtcrJY9bW24AImpqdteiE'
+
+if (typeof supabase === 'undefined') {
+  console.error("ERRO CRÍTICO: Script do Supabase não foi carregado via CDN!");
+  alert("Erro ao carregar Supabase. Verifique sua conexão ou se o script está bloqueado.");
+}
+
 const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -1255,6 +1346,10 @@ let editingUnitRepo = []
 // ── ANO FISCAL ATIVO NA VISÃO GERAL ──
 const ANO_BASE = new Date().getFullYear()
 let anoVisaoGeral = ANO_BASE
+let currentPageId = 'geral'
+// Remover box de diagnóstico residual se existir
+const oldDebug = document.getElementById('debug-box');
+if (oldDebug) oldDebug.remove();
 
 function renderAnoTabs() {
   const anos = [ANO_BASE - 2, ANO_BASE - 1, ANO_BASE, ANO_BASE + 1]
@@ -1414,44 +1509,87 @@ async function startTour() {
 
 
 
-async function onLogin(user) {
-  currentUser = user
-  let { data: profile, error: fetchErr } = await db.from('usuarios').select('*').eq('id', user.id).single()
-  
-  // Se o perfil não existe, vamos criá-lo automaticamente
-  if (!profile || fetchErr) {
-    console.log("Perfil não encontrado, criando novo perfil para:", user.email);
-    const { data: newProfile, error: insErr } = await db.from('usuarios').insert({
-      id: user.id,
-      email: user.email,
-      nome: user.user_metadata?.full_name || user.email.split('@')[0],
-      perfil: 'gestor' // Define como gestor para garantir seu acesso
-    }).select().single();
-    
-    if (!insErr) profile = newProfile;
-    else console.error("Erro ao criar perfil:", insErr);
-  }
+function showPage(pageId) {
+  document.querySelectorAll('nav .nav-item').forEach(i => i.classList.remove('active'));
+  const activeNav = document.querySelector(`nav .nav-item[data-page="${pageId}"]`);
+  if (activeNav) activeNav.classList.add('active');
 
-  currentProfile = profile
-  
-  // Atualizar último acesso
-  await db.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', user.id)
-
-  document.getElementById('login-screen').style.display = 'none'
-  document.getElementById('app').style.display = 'block'
-  document.getElementById('user-badge').textContent = profile?.nome || user.email
-  document.getElementById('ano-atual').textContent = anoVisaoGeral
-  renderAnoTabs()
-  const userPerfil = (profile?.perfil || '').toLowerCase();
-  if (userPerfil !== 'gestor') {
-    console.log('Acesso Admin negado para perfil:', profile?.perfil);
-    document.getElementById('nav-admin').style.display = 'none';
+  document.querySelectorAll('main .page').forEach(p => p.classList.remove('active'));
+  const targetPage = document.getElementById('page-' + pageId);
+  currentPageId = pageId;
+  if (targetPage) {
+    targetPage.classList.add('active');
   } else {
-    document.getElementById('nav-admin').style.display = 'flex';
+    // Fallback para IDs antigos
+    const fallbacks = { 'geral': 'page-visao-geral', 'atividades': 'page-eta-cursos' };
+    const fallbackId = fallbacks[pageId] || ('page-' + pageId);
+    const fbPage = document.getElementById(fallbackId);
+    if (fbPage) fbPage.classList.add('active');
   }
-  await loadBaseData()
-  await loadExposicoes()
-  appInitialized = true;
+
+  if (pageId === 'geral' || pageId === 'exposicoes') loadExposicoes();
+  if (pageId === 'timeline') loadTimeline();
+  if (pageId === 'colaboradores') loadColaboradores();
+  if (pageId === 'educadores') loadEducadores();
+  if (pageId === 'educativo') {
+    const isVisitas = document.querySelector('.painel-tab[data-edu-tab="visitas"]')?.classList.contains('active');
+    if (isVisitas) {
+      loadVisitasMediadas(currentVisitasAno || 2026);
+    } else {
+      loadEducativo();
+    }
+  }
+  if (pageId === 'atividades' || pageId === 'eta-cursos') loadAtividadesComplementares();
+  if (pageId === 'unidades') loadUnidades();
+  if (pageId === 'aberturas') loadAberturas();
+  if (pageId === 'admin') { loadAdmin(); loadLogs(); }
+}
+
+async function onLogin(user) {
+  try {
+    currentUser = user
+    let { data: profile, error: fetchErr } = await db.from('usuarios').select('*').eq('id', user.id).single()
+    
+    if (!profile || fetchErr) {
+      console.log("Perfil não encontrado, criando novo perfil:", user.email);
+      const { data: newProfile, error: insErr } = await db.from('usuarios').insert({
+        id: user.id, email: user.email,
+        nome: user.user_metadata?.full_name || user.email.split('@')[0],
+        perfil: 'gestor'
+      }).select().single();
+      if (!insErr) profile = newProfile;
+      else console.error("Erro ao criar perfil:", insErr);
+    }
+
+    currentProfile = profile
+    await db.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', user.id)
+
+    const screenLogin = document.getElementById('login-screen');
+    const screenApp = document.getElementById('app');
+    if (screenLogin) screenLogin.style.display = 'none';
+    if (screenApp) screenApp.style.display = 'block';
+
+    const badge = document.getElementById('user-badge');
+    if (badge) badge.textContent = profile?.nome || user.email;
+
+    const elAno = document.getElementById('ano-atual');
+    if (elAno) elAno.textContent = anoVisaoGeral;
+
+    renderAnoTabs()
+
+    const navAdmin = document.getElementById('nav-admin');
+    if (navAdmin) {
+      const userPerfil = (profile?.perfil || '').toLowerCase();
+      navAdmin.style.display = userPerfil === 'gestor' ? 'flex' : 'none';
+    }
+
+    await loadBaseData()
+    await loadExposicoes()
+    appInitialized = true;
+  } catch (err) {
+    console.error("CRASH NO LOGIN:", err);
+    alert("Erro crítico no login: " + err.message);
+  }
 }
 
 function onLogout() {
@@ -1481,26 +1619,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('nav .nav-item').forEach(item => {
     item.addEventListener('click', () => {
       const page = item.getAttribute('data-page')
-      document.querySelectorAll('nav .nav-item').forEach(i => i.classList.remove('active'))
-      item.classList.add('active')
-      document.querySelectorAll('main .page').forEach(p => p.classList.remove('active'))
-      document.getElementById('page-' + page).classList.add('active')
-      if (page === 'visao-geral') loadExposicoes()
-      if (page === 'timeline') loadTimeline()
-      if (page === 'colaboradores') loadColaboradores()
-      if (page === 'educadores') loadEducadores()
-      if (page === 'educativo') loadEducativo()
-      if (page === 'eta-cursos') loadAtividadesComplementares()
-      if (page === 'unidades') loadUnidades()
-
-      if (page === 'aberturas') loadAberturas()
-      if (page === 'admin') { loadAdmin(); loadLogs() }
-      
-      const isCons = currentProfile?.perfil === 'consultor'
-      const btnNovo = document.getElementById('btn-abrir-modal-novo')
-      if (btnNovo) btnNovo.style.display = isCons ? 'none' : 'block'
+      if (page) showPage(page)
     })
   })
+
 
   // Listeners do Multiselect Status
   document.addEventListener('click', (e) => {
@@ -1560,14 +1682,20 @@ async function loadBaseData() {
   allEspacos = espacos || []
   
   const fu = document.getElementById('filter-unidade')
-  fu.innerHTML = '<option value="">Todas as unidades</option>'
-  allUnidades.forEach(u => fu.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  if (fu) {
+    fu.innerHTML = '<option value="">Todas as unidades</option>'
+    allUnidades.forEach(u => fu.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  }
   const fa = document.getElementById('filter-assistente')
-  fa.innerHTML = '<option value="">Todos os assistentes</option>'
-  allUsuarios.forEach(u => fa.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  if (fa) {
+    fa.innerHTML = '<option value="">Todos os assistentes</option>'
+    allUsuarios.forEach(u => fa.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  }
   const su = document.getElementById('f-unidade')
-  su.innerHTML = '<option value="">— Selecione —</option>'
-  allUnidades.forEach(u => su.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  if (su) {
+    su.innerHTML = '<option value="">— Selecione —</option>'
+    allUnidades.forEach(u => su.innerHTML += `<option value="${u.id}">${u.nome}</option>`)
+  }
   
   const fedu = document.getElementById('fe-unidade')
   if(fedu) {
@@ -1597,8 +1725,8 @@ async function loadBaseData() {
     allUsuarios.forEach(u => acb.innerHTML += `<label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer"><input type="checkbox" class="chk-assistente" id="chk-ast-${u.id}" value="${u.id}"> ${u.nome}</label>`);
   }
 
-  // Listener para filtrar espaços quando mudar unidade no modal de expo
-  document.getElementById('f-unidade').addEventListener('change', (e) => updateEspacoDropdown(e.target.value))
+  const fUnid = document.getElementById('f-unidade')
+  if (fUnid) fUnid.addEventListener('change', (e) => updateEspacoDropdown(e.target.value))
 }
 
 function updateEspacoDropdown(unitId, selectedId = null) {
@@ -1653,25 +1781,62 @@ function renderKPIs(list) {
   })
   const orcTotal = list.reduce((s, e) => s + (parseFloat(e.valor_estimado) || 0), 0)
 
-  document.getElementById('kpi-total').textContent = list.length
-  document.getElementById('kpi-total-sub').textContent = `no ano de ${anoVisaoGeral}`
-  document.getElementById('kpi-ativas').textContent = ativas.length
+  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; }
+  
+  setT('kpi-total', list.length)
+  setT('kpi-total-sub', `no ano de ${anoVisaoGeral}`)
+  setT('kpi-ativas', ativas.length)
+  
   const statusCount = {}
   ativas.forEach(e => statusCount[e.status] = (statusCount[e.status]||0)+1)
-  document.getElementById('kpi-ativas-sub').textContent = Object.entries(statusCount).map(([k,v])=>`${v} ${k}`).join(' · ')
-  const isSec = currentProfile?.perfil === 'secretaria'
-  if (isSec) {
-    document.getElementById('kpi-orcamento').textContent = 'Restrito'
-    document.getElementById('kpi-orcamento').style.fontSize = '18px'
-    document.getElementById('kpi-orcamento-sub').textContent = 'Acesso administrativo necessário'
-  } else {
-    document.getElementById('kpi-orcamento').textContent = orcTotal ? fmtMoney(orcTotal) : '—'
-    document.getElementById('kpi-orcamento').style.fontSize = ''
-    document.getElementById('kpi-orcamento-sub').textContent = orcTotal ? `em ${list.filter(e=>e.valor_estimado).length} exposições` : 'Sem valores cadastrados'
-  }
-  document.getElementById('kpi-proximas').textContent = proximas.length
-  document.getElementById('kpi-proximas-sub').textContent = proximas.length ? proximas.slice(0,2).map(e=>e.titulo).join(', ') + (proximas.length > 2 ? '…' : '') : 'Nenhuma nos próximos 60 dias'
+  setT('kpi-ativas-sub', Object.entries(statusCount).map(([k,v])=>`${v} ${k}`).join(' · '))
   
+  const isSec = currentProfile?.perfil === 'secretaria'
+  const kpiOrc = document.getElementById('kpi-orcamento')
+  const kpiOrcSub = document.getElementById('kpi-orcamento-sub')
+
+  if (isSec) {
+    if (kpiOrc) { kpiOrc.textContent = 'Restrito'; kpiOrc.style.fontSize = '18px'; }
+    if (kpiOrcSub) kpiOrcSub.textContent = 'Acesso administrativo necessário'
+  } else {
+    if (kpiOrc) { kpiOrc.textContent = orcTotal ? fmtMoney(orcTotal) : '—'; kpiOrc.style.fontSize = ''; }
+    if (kpiOrcSub) kpiOrcSub.textContent = orcTotal ? `em ${list.filter(e=>e.valor_estimado).length} exposições` : 'Sem valores cadastrados'
+  }
+  
+  setT('kpi-proximas', proximas.length)
+  setT('kpi-proximas-sub', proximas.length ? proximas.slice(0,2).map(e=>e.titulo).join(', ') + (proximas.length > 2 ? '…' : '') : 'Nenhuma nos próximos 60 dias')
+  
+  // -- DASHBOARD "Próximas Aberturas" (Visão Geral) --
+  const dashAberturasList = document.getElementById('dash-aberturas-list')
+  if (dashAberturasList) {
+    if (proximas.length === 0) {
+      dashAberturasList.innerHTML = '<div style="color:var(--muted); font-size:12px; padding:20px 0;">Nenhuma abertura nos próximos 60 dias.</div>'
+    } else {
+      dashAberturasList.innerHTML = proximas.slice(0, 4).map(e => `
+        <div class="card" onclick="openPainel('${e.id}')" style="padding:15px; border-left:4px solid ${bc(e.status).replace('bar-','#') === '#' ? 'var(--accent2)' : bc(e.status).replace('bar-','#')};">
+          <div class="card-unidade" style="font-size:9px">${e.unidades?.nome || '—'}</div>
+          <div class="card-titulo" style="font-size:14px; margin-bottom:8px">${e.titulo}</div>
+          <div class="card-datas" style="font-size:11px">📅 ${fmtDate(e.data_abertura)}</div>
+        </div>
+      `).join('')
+    }
+  }
+
+  // -- DASHBOARD KPIs (Visão Geral) --
+  const dashKpiGrid = document.getElementById('dash-kpi-grid')
+  if (dashKpiGrid) {
+    const totalInvest = isSec ? 'Restrito' : fmtMoney(orcTotal)
+    const mediaGeral = list.length ? Math.round(list.reduce((s,e)=>s+getStatusPct(e.status),0)/list.length) : 0
+    const unidCount = new Set(list.map(e=>e.unidade_id).filter(Boolean)).size
+    
+    dashKpiGrid.innerHTML = `
+      <div class="kpi-card"><div class="kpi-value">${list.length}</div><div class="kpi-label">Exposições Ativas</div></div>
+      <div class="kpi-card"><div class="kpi-value">${unidCount}</div><div class="kpi-label">Unidades Participantes</div></div>
+      <div class="kpi-card"><div class="kpi-value" style="${isSec?'font-size:18px':''}">${totalInvest}</div><div class="kpi-label">Total Investido</div></div>
+      <div class="kpi-card"><div class="kpi-value">${mediaGeral}%</div><div class="kpi-label">Evolução Geral</div></div>
+    `
+  }
+
   renderDashboardCharts(list)
 }
 
@@ -2094,9 +2259,20 @@ async function loadUnidades() {
     // Calcular visitação total (ano atual)
     const visitacaoTotal = unitExpos.filter(e => e.ano === today.getFullYear()).reduce((s,e) => s + (e.visitas_expo_estatistico||0) + (e.visitas_mediadas_estatistico||0), 0)
     
-    // Determinar atual e próxima
-    const atual = unitExpos.find(e => e.data_abertura && e.data_encerramento && new Date(e.data_abertura+'T12:00:00') <= today && new Date(e.data_encerramento+'T12:00:00') >= today)
-    const proxima = unitExpos.filter(e => e.data_abertura && new Date(e.data_abertura+'T12:00:00') > today).sort((a,b) => new Date(a.data_abertura) - new Date(b.data_abertura))[0]
+    // Determinar atual e próxima - Lógica mais robusta
+    const atual = unitExpos.find(e => e.status === 'Aberta') || 
+                  unitExpos.find(e => e.data_abertura && e.data_encerramento && new Date(e.data_abertura+'T12:00:00') <= today && new Date(e.data_encerramento+'T12:00:00') >= today)
+    
+    const proximasFuturas = unitExpos.filter(e => {
+      if (e.status === 'Aberta' || e.status === 'Encerrada' || e.status === 'Cancelada') return false
+      if (e.data_abertura && new Date(e.data_abertura+'T12:00:00') > today) return true
+      return ['Em produção', 'Em aprovação', 'Em tratativas'].includes(e.status)
+    }).sort((a,b) => {
+      if (!a.data_abertura) return 1
+      if (!b.data_abertura) return -1
+      return new Date(a.data_abertura) - new Date(b.data_abertura)
+    })
+    const proxima = proximasFuturas[0]
     
     return `
       <div class="unidade-card" onclick="openUnitModal('${u.id}')">
@@ -2345,6 +2521,21 @@ document.addEventListener('click', e => {
     document.querySelectorAll('.unit-tab-content').forEach(c => c.classList.remove('active'))
     const target = document.getElementById('unit-tab-' + tab)
     if(target) target.classList.add('active')
+  }
+
+  if (e.target.dataset.eduTab) {
+    const tabId = e.target.dataset.eduTab
+    document.querySelectorAll('[data-edu-tab]').forEach(t => t.classList.remove('active'))
+    e.target.classList.add('active')
+    document.querySelectorAll('.edu-tab-content').forEach(c => c.classList.remove('active'))
+    const targetContent = document.getElementById('edu-tab-' + tabId)
+    if (targetContent) targetContent.classList.add('active')
+    
+    if (tabId === 'visitas') {
+        loadVisitasMediadas(currentVisitasAno || 2026);
+    } else {
+        loadEducativo();
+    }
   }
 })
 
@@ -2617,8 +2808,12 @@ document.getElementById('filter-funcao').addEventListener('change', loadColabora
 // ── DASHBOARD EDUCATIVO ──
 
 async function loadEducativo() {
-  const container = document.getElementById('educativo-container')
-  container.innerHTML = '<div class="loading">Carregando equipe educativa...</div>'
+  const isEquipeTab = document.querySelector('.painel-tab[data-edu-tab="equipe"]')?.classList.contains('active');
+  if (!isEquipeTab) return; // Aborta se não estiver na aba de equipe
+
+  const eduContainer = document.getElementById('equipe-educativo-list')
+  if (!eduContainer) return
+  eduContainer.innerHTML = '<div class="loading">Carregando equipe educativa...</div>'
 
   const ATIVOS = ['Aberta','Em produção','Em aprovação','Em tratativas']
   const CAMPOS_SAL = [
@@ -2636,19 +2831,18 @@ async function loadEducativo() {
   CAMPOS_SAL.forEach(c => { salarios[c.salKey] = parseFloat(localStorage.getItem('edu_sal_' + c.salKey) || '0') })
 
   // Buscar TODAS as exposições válidas para separar ativas da última encerrada
-  const anoAtual = new Date().getFullYear()
+  const anoAtual = new Date().getFullYear();
   const { data: expos, error } = await db.from('exposicoes')
-    .select('id, titulo, status, ano, data_abertura, unidade_id, unidades(nome), edu_estagiarios, edu_facilitador1, edu_facilitador2, edu_educador_social, edu_asa')
+    .select('id, titulo, status, ano, data_abertura, unidade_id, unidades(nome, capital_interior), edu_estagiarios, edu_facilitador1, edu_facilitador2, edu_educador_social, edu_asa')
     .not('status', 'in', '("Cancelada","Postergada")')
   
   if (error) { container.innerHTML = '<div class="empty-state"><p>Erro ao carregar dados</p></div>'; return }
 
   const allExpos = expos || []
-  const exposAtivas = allExpos.filter(e => ATIVOS.includes(e.status)).sort((a,b) => (a.titulo||'').localeCompare((b.titulo||''), 'pt-BR'))
-  
-  // Encontrar a última encerrada de cada unidade
+  const exposAtivas = allExpos.filter(e => ATIVOS.includes(e.status))
+
+  // Encontrar a última encerrada de cada unidade para histórico
   const encerradas = allExpos.filter(e => e.status === 'Encerrada')
-  // Ordenar por ano desc, depois data desc
   encerradas.sort((a,b) => (b.ano - a.ano) || (new Date(b.data_abertura||0) - new Date(a.data_abertura||0)))
   const ultimaPorUnidade = {}
   encerradas.forEach(e => {
@@ -2768,7 +2962,319 @@ async function loadEducativo() {
   })
 
   tableHtml += `</div>`
-  container.innerHTML = salariosHtml + kpiHtml + tableHtml
+  eduContainer.innerHTML = salariosHtml + kpiHtml + tableHtml
+}
+
+
+let allVisitasMediadas = {};
+let currentVisitasAno = 2026;
+
+async function loadVisitasMediadas(ano) {
+  const isVisitasTab = document.querySelector('.painel-tab[data-edu-tab="visitas"]')?.classList.contains('active');
+  if (!isVisitasTab && currentPageId === 'educativo') return; 
+
+  currentVisitasAno = ano;
+  document.querySelectorAll('#edu-tab-visitas .ano-tab').forEach(el => el.classList.remove('active'));
+  const tabBtn = document.getElementById('tab-visitas-' + ano);
+  if (tabBtn) tabBtn.classList.add('active');
+
+  const visContainer = document.getElementById('visitas-automatic-list');
+  if (!visContainer) return;
+  visContainer.innerHTML = '<div class="loading">Carregando relatório de visitas...</div>';
+
+  const { data: expos, error: errExpos } = await db.from('exposicoes').select('id, titulo, status, ano, unidade_id, unidades(nome)');
+  if (errExpos) { container.innerHTML = '<div class="empty-state">Erro ao carregar exposições</div>'; return; }
+
+  // Filtrar apenas exposições que já abriram ao público (Aberta ou Encerrada)
+  let exposFiltradas = (expos || []).filter(e => Number(e.ano) === ano && (e.status === 'Aberta' || e.status === 'Encerrada'));
+
+  const { data: visitas, error: errVisitas } = await db.from('visitas_mediadas').select('*');
+  let mapVisitas = {};
+  if (!errVisitas && visitas) {
+    visitas.forEach(v => mapVisitas[v.exposicao_id] = v);
+  }
+  allVisitasMediadas = mapVisitas;
+
+  let totalGeral = 0;
+  let totalPresencas = 0;
+  let totalIntegradas = 0;
+  let somaNotas = 0;
+  let countNotas = 0;
+
+  const porUnidade = {};
+  exposFiltradas.forEach(e => {
+    const uid = e.unidade_id || '_sem';
+    if (!porUnidade[uid]) porUnidade[uid] = { nome: e.unidades?.nome || 'Sem Unidade', expos: [] };
+    porUnidade[uid].expos.push(e);
+
+    const v = mapVisitas[e.id];
+    if (v) {
+      let g = (v.publico_total_geral || 0);
+      let m = (v.presencas_totais || 0);
+      let i = (v.presencas_integradas || 0);
+
+      // Fallback para KPIs
+      if (v.comentarios && v.comentarios.includes('[DADOS 2025]')) {
+        try {
+          const extra = JSON.parse(v.comentarios.split('[DADOS 2025]')[1].trim());
+          if (!g) g = extra.pubTotal || 0;
+          if (!m) m = (extra.agend || 0) + (extra.espont || 0);
+          if (!i && extra.matriz) extra.matriz.forEach(a => i += (a.pub || 0));
+        } catch(err) {}
+      }
+
+      totalGeral += g;
+      totalPresencas += m;
+      totalIntegradas += i;
+      
+      const notaE = v.nota_experiencia || 0;
+      const notaR = v.nota_relevancia || 0;
+      if (notaE > 0 || notaR > 0) {
+        somaNotas += (notaE + notaR) / 2;
+        countNotas++;
+      }
+    }
+  });
+
+  document.getElementById('kpi-visitas-geral').textContent = totalGeral.toLocaleString();
+  document.getElementById('kpi-visitas-presencas').textContent = totalPresencas.toLocaleString();
+  document.getElementById('kpi-visitas-integradas').textContent = totalIntegradas.toLocaleString();
+
+  const colWidth = 110;
+  let html = `
+    <div class="timeline-wrapper" style="margin-top:0;overflow-x:auto">
+      <div style="display:grid;grid-template-columns:1fr 120px 120px 120px 130px;background:#eee;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10">
+        <div style="padding:12px 16px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted)">Unidade / Exposição</div>
+        <div style="padding:12px 6px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);text-align:center;border-left:1px solid var(--border)">Total Presenças</div>
+        <div style="padding:12px 6px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);text-align:center;border-left:1px solid var(--border)">Visitas Mediadas</div>
+        <div style="padding:12px 6px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);text-align:center;border-left:1px solid var(--border)">Presenças Integradas</div>
+        <div style="padding:12px 6px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--muted);text-align:center;border-left:1px solid var(--border)">Ação</div>
+      </div>
+  `;
+
+  Object.values(porUnidade).sort((a,b) => a.nome.localeCompare(b.nome)).forEach(u => {
+    html += `
+      <div class="edu-unit-row" style="margin-bottom:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
+        <div style="padding:12px 16px;background:#f5f3ef;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;">🏛️ ${u.nome}</div>
+    `;
+    u.expos.sort((a,b) => a.titulo.localeCompare(b.titulo)).forEach(e => {
+      const v = mapVisitas[e.id];
+      let totalGeralVal = v ? (v.publico_total_geral || 0) : 0;
+      let mediadasVal = v ? (v.presencas_totais || 0) : 0;
+      let integradasVal = v ? (v.presencas_integradas || 0) : 0;
+
+      // Recuperar dados de fallback se o dado oficial for zero mas houver histórico 2025
+      if (v && v.comentarios && v.comentarios.includes('[DADOS 2025]')) {
+        try {
+          const jsonPart = v.comentarios.split('[DADOS 2025]')[1].trim();
+          const extra = JSON.parse(jsonPart);
+          if (!totalGeralVal) totalGeralVal = extra.pubTotal || 0;
+          if (!mediadasVal) mediadasVal = extra.agend + extra.espont || 0;
+          if (!integradasVal) {
+             let sumI = 0;
+             if(extra.matriz) extra.matriz.forEach(a => sumI += (a.pub || 0));
+             integradasVal = sumI;
+          }
+        } catch(err) {}
+      }
+
+      const totalGeral = totalGeralVal ? totalGeralVal.toLocaleString() : '—';
+      const mediadas = mediadasVal ? mediadasVal.toLocaleString() : '—';
+      const integradas = integradasVal ? integradasVal.toLocaleString() : '—';
+
+      html += `
+        <div style="display:grid;grid-template-columns:1fr 120px 120px 120px 130px;border-bottom:1px solid var(--border);background:#fff">
+          <div style="padding:10px 16px 10px 24px;font-size:13px;color:var(--text);font-weight:500;">${e.titulo}</div>
+          <div style="padding:10px 6px;text-align:center;border-left:1px solid var(--border);font-weight:600">${totalGeral}</div>
+          <div style="padding:10px 6px;font-size:13px;text-align:center;border-left:1px solid var(--border);color:var(--accent)">${mediadas}</div>
+          <div style="padding:10px 6px;font-size:13px;text-align:center;border-left:1px solid var(--border)">${integradas}</div>
+          <div style="padding:8px 6px;text-align:center;border-left:1px solid var(--border)">
+             <button class="btn-lancar" style="background:var(--accent2);color:#fff;border:none;padding:5px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer" onclick="openVisitaModal('${e.id}')">${v ? 'Editar' : 'Lançar'}</button>
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  });
+
+  if (exposFiltradas.length === 0) {
+    html += `<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;font-style:italic">Nenhuma exposição encontrada para este ano/cenário.</div>`;
+  }
+  
+  html += `</div>`;
+  visContainer.innerHTML = html;
+}
+
+async function openVisitaModal(expoId) {
+  const modal = document.getElementById('modal-visitas');
+  if (!modal) return;
+
+  const e = await getExposicao(expoId);
+  if (!e) return;
+
+  document.getElementById('modal-visitas-title').textContent = 'Relatório: ' + e.titulo;
+  document.getElementById('fv-exposicao-id').value = expoId;
+  document.getElementById('fv-unidade-id').value = e.unidade_id;
+
+  // Limpar campos antes de carregar
+  const inputs = modal.querySelectorAll('input[type="number"], input[type="text"], textarea');
+  inputs.forEach(i => i.value = '');
+  modal.querySelectorAll('select').forEach(s => s.value = 'false');
+
+  const v = allVisitasMediadas[expoId];
+  if (v) {
+    document.getElementById('fv-presencas-totais').value = v.presencas_totais || '';
+    document.getElementById('fv-dias-visitacao').value = v.dias_visitacao || '';
+    document.getElementById('fv-presencas-integradas').value = v.presencas_integradas || '';
+    document.getElementById('fv-instituicoes').value = v.qtd_instituicoes || '';
+    document.getElementById('fv-cidades').value = v.cidades_atendidas || '';
+    document.getElementById('fv-nota-experiencia').value = v.nota_experiencia || '';
+    document.getElementById('fv-nota-relevancia').value = v.nota_relevancia || '';
+    
+    // Novos campos 2025
+    document.getElementById('fv-publico-total-geral').value = v.publico_total_geral || '';
+    document.getElementById('fv-presencas-agendadas').value = v.presencas_agendadas || '';
+    document.getElementById('fv-presencas-espontaneas').value = v.presencas_espontaneas_mediadas || '';
+    document.getElementById('fv-estudantes-impactados').value = v.estudantes_impactados || '';
+    document.getElementById('fv-onibus-contratados').value = v.onibus_contratados || '';
+    
+    // Preencher matriz de ações
+    if (v.detalhe_acoes_json && Array.isArray(v.detalhe_acoes_json)) {
+      v.detalhe_acoes_json.forEach(a => {
+        const q = document.querySelector(`.fv-acao-qtd[data-tipo="${a.tipo}"]`);
+        const p = document.querySelector(`.fv-acao-pub[data-tipo="${a.tipo}"]`);
+        if (q) q.value = a.qtd || '';
+        if (p) p.value = a.pub || '';
+      });
+    }
+
+    document.getElementById('fv-comentarios').value = v.comentarios || '';
+
+    // TENTAR RECUPERAR DADOS DO FALLBACK (caso as colunas não existam no DB)
+    if (v.comentarios && v.comentarios.includes('[DADOS 2025]')) {
+      try {
+        const jsonPart = v.comentarios.split('[DADOS 2025]')[1].trim();
+        const extra = JSON.parse(jsonPart);
+        if (!v.publico_total_geral) document.getElementById('fv-publico-total-geral').value = extra.pubTotal || '';
+        if (!v.presencas_agendadas) document.getElementById('fv-presencas-agendadas').value = extra.agend || '';
+        if (!v.presencas_espontaneas_mediadas) document.getElementById('fv-presencas-espontaneas').value = extra.espont || '';
+        if (!v.estudantes_impactados) document.getElementById('fv-estudantes-impactados').value = extra.estud || '';
+        if (!v.onibus_contratados) document.getElementById('fv-onibus-contratados').value = extra.bus || '';
+        if (!v.detalhe_acoes_json || v.detalhe_acoes_json.length === 0) {
+           if (extra.matriz) {
+             extra.matriz.forEach(a => {
+               const q = document.querySelector(`.fv-acao-qtd[data-tipo="${a.tipo}"]`);
+               const p = document.querySelector(`.fv-acao-pub[data-tipo="${a.tipo}"]`);
+               if (q) q.value = a.qtd || '';
+               if (p) p.value = a.pub || '';
+             });
+           }
+        }
+      } catch(e) { console.warn('Erro ao ler dados extras do comentário'); }
+    }
+
+    calcTotalMediadas(); // Recalcular totais visuais
+  }
+
+  modal.classList.add('open');
+}
+
+function calcTotalMediadas() {
+  const agendadas = parseInt(document.getElementById('fv-presencas-agendadas').value) || 0;
+  const espontaneas = parseInt(document.getElementById('fv-presencas-espontaneas').value) || 0;
+  document.getElementById('fv-presencas-totais').value = agendadas + espontaneas;
+
+  // Calcular total de ações integradas
+  let totalInt = 0;
+  document.querySelectorAll('.fv-acao-pub').forEach(i => totalInt += (parseInt(i.value) || 0));
+  document.getElementById('fv-presencas-integradas').value = totalInt;
+}
+
+async function saveVisitaMediada() {
+  const expoId = document.getElementById('fv-exposicao-id').value;
+  const unitId = document.getElementById('fv-unidade-id').value;
+
+  // Montar JSON das ações
+  const acoes = [];
+  document.querySelectorAll('.fv-acao-qtd').forEach(el => {
+    const tipo = el.dataset.tipo;
+    const pub = document.querySelector(`.fv-acao-pub[data-tipo="${tipo}"]`).value;
+    if (el.value || pub) {
+      acoes.push({ tipo, qtd: parseInt(el.value)||0, pub: parseInt(pub)||0 });
+    }
+  });
+
+  const payload = {
+    exposicao_id: expoId,
+    unidade_id: unitId,
+    publico_total_geral: parseInt(document.getElementById('fv-publico-total-geral').value) || 0,
+    presencas_totais: parseInt(document.getElementById('fv-presencas-totais').value) || 0,
+    presencas_agendadas: parseInt(document.getElementById('fv-presencas-agendadas').value) || 0,
+    presencas_espontaneas_mediadas: parseInt(document.getElementById('fv-presencas-espontaneas').value) || 0,
+    estudantes_impactados: parseInt(document.getElementById('fv-estudantes-impactados').value) || 0,
+    onibus_contratados: parseInt(document.getElementById('fv-onibus-contratados').value) || 0,
+    dias_visitacao: parseInt(document.getElementById('fv-dias-visitacao').value) || 0,
+    presencas_integradas: parseInt(document.getElementById('fv-presencas-integradas').value) || 0,
+    qtd_instituicoes: parseInt(document.getElementById('fv-instituicoes').value) || 0,
+    cidades_atendidas: document.getElementById('fv-cidades').value || '',
+    nota_experiencia: parseFloat(document.getElementById('fv-nota-experiencia').value) || null,
+    nota_relevancia: parseFloat(document.getElementById('fv-nota-relevancia').value) || null,
+    comentarios: document.getElementById('fv-comentarios').value || '',
+    detalhe_acoes_json: acoes // Novo campo JSON
+  };
+
+  // Verificar se já existe (Update) ou se é novo (Insert)
+  const exists = allVisitasMediadas[expoId];
+  let res;
+
+  if (exists) {
+    res = await db.from('visitas_mediadas').update(payload).eq('exposicao_id', expoId).select();
+  } else {
+    res = await db.from('visitas_mediadas').insert(payload).select();
+  }
+
+  if (res.error) {
+    console.warn('Tentando fallback por colunas ausentes...', res.error);
+    const fallbackPayload = { ...payload };
+    
+    // Limpar campos de impacto escolar antigo para evitar conflitos se existirem
+    delete fallbackPayload.qtd_alunos_sala;
+    delete fallbackPayload.qtd_alunos_outros;
+    delete fallbackPayload.publico_total_geral;
+    delete fallbackPayload.presencas_agendadas;
+    delete fallbackPayload.presencas_espontaneas_mediadas;
+    delete fallbackPayload.estudantes_impactados;
+    delete fallbackPayload.onibus_contratados;
+    delete fallbackPayload.detalhe_acoes_json;
+    
+    // Injetar dados de 2025 no campo comentários como JSON para recuperação posterior
+    const extraData = {
+        pubTotal: payload.publico_total_geral,
+        agend: payload.presencas_agendadas,
+        espont: payload.presencas_espontaneas_mediadas,
+        estud: payload.estudantes_impactados,
+        bus: payload.onibus_contratados,
+        matriz: acoes
+    };
+    
+    // Remover bloco anterior para não duplicar se já existir
+    let cleanComent = (fallbackPayload.comentarios || '').split('\n[DADOS 2025]')[0];
+    fallbackPayload.comentarios = cleanComent + `\n[DADOS 2025] ${JSON.stringify(extraData)}`; 
+
+    if (exists) {
+      res = await db.from('visitas_mediadas').update(fallbackPayload).eq('exposicao_id', expoId);
+    } else {
+      res = await db.from('visitas_mediadas').insert(fallbackPayload);
+    }
+  }
+
+  if (res.error) {
+    alert('Erro definitivo ao salvar: ' + res.error.message);
+  } else {
+    showToast('Relatório salvo com sucesso!');
+    document.getElementById('modal-visitas').classList.remove('open');
+    loadVisitasMediadas(currentVisitasAno);
+  }
 }
 
 function _salvarSalarioEdu(key, val) {
@@ -3002,12 +3508,17 @@ let painelEquipe = []
 async function openPainel(id) {
   const isSec = currentProfile?.perfil === 'secretaria'
   painelExpId = id
-  let e = allExposicoes.find(x => x.id == id) || arquivoDados.find(x => x.id == id)
+  // Tenta encontrar na lista atual ou busca diretamente no DB
+  let e = allExposicoes.find(x => x.id == id)
   
   if (!e) {
     const q = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
     const { data, error } = await db.from('exposicoes').select(q).eq('id', id).single()
-    if (error || !data) { console.error('Exposição não encontrada:', id); return }
+    if (error || !data) { 
+      console.error('Exposição não encontrada no Banco:', id); 
+      showToast('Erro ao carregar detalhes para edição', true);
+      return; 
+    }
     e = data
   }
 
@@ -4152,6 +4663,19 @@ document.querySelectorAll('[data-atv-tab]').forEach(tab => {
   }
 })
 
+// Tab Switching for Educativo
+document.querySelectorAll('[data-edu-tab]').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('[data-edu-tab]').forEach(t => t.classList.remove('active'))
+    tab.classList.add('active')
+    document.querySelectorAll('.edu-tab-content').forEach(c => c.classList.remove('active'))
+    document.getElementById('edu-tab-' + tab.getAttribute('data-edu-tab')).classList.add('active')
+    
+    const page = tab.getAttribute('data-edu-tab')
+    if (page === 'visitas') loadVisitasMediadas(currentVisitasAno)
+  }
+})
+
 function toggleVisitaField(id, val) {
   document.getElementById(id).style.display = val === 'true' ? 'block' : 'none'
 }
@@ -4175,14 +4699,21 @@ async function loadVisitas() {
     totalIndireto += (v.qtd_alunos_outros || 0) // Usaremos qtd_alunos_outros para indiretos
   })
 
-  document.getElementById('kpi-visitas-impacto').textContent = totalPublico.toLocaleString()
-  document.getElementById('kpi-visitas-nota').textContent = totalMediadas.toLocaleString()
-  document.getElementById('kpi-visitas-material').textContent = totalIndireto.toLocaleString()
+  const kpiImpacto = document.getElementById('kpi-visitas-presencas');
+  const kpiNota = document.getElementById('kpi-visitas-nota');
+  const kpiIntegrada = document.getElementById('kpi-visitas-integradas');
+
+  if (kpiImpacto) kpiImpacto.textContent = totalPublico.toLocaleString();
+  if (kpiNota) kpiNota.textContent = totalMediadas.toLocaleString();
+  if (kpiIntegrada) kpiIntegrada.textContent = totalIndireto.toLocaleString();
   
-  // Nomes dos KPIs mais profissionais
-  document.querySelectorAll('#atv-tab-visitas .kpi-label')[0].textContent = "Presenças Totais (2025)"
-  document.querySelectorAll('#atv-tab-visitas .kpi-label')[1].textContent = "Visitas Mediadas"
-  document.querySelectorAll('#atv-tab-visitas .kpi-label')[2].textContent = "Impacto Indireto"
+  // Update labels if needed - only if container exists
+  const labels = document.querySelectorAll('#edu-tab-visitas .kpi-label');
+  if (labels.length >= 3) {
+    labels[0].textContent = "Presenças Totais (2025)";
+    labels[1].textContent = "Visitas Mediadas";
+    labels[2].textContent = "Impacto Indireto";
+  }
 
   container.innerHTML = `
     <table class="edu-table">
@@ -4215,39 +4746,9 @@ async function loadVisitas() {
   `
 }
 
-function openVisitaModal() {
-  const selU = document.getElementById('fv-unidade')
-  const selE = document.getElementById('fv-exposicao')
-  
-  selU.innerHTML = allUnidades.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')
-  selE.innerHTML = allExposicoes.map(e => `<option value="${e.id}">${e.titulo}</option>`).join('')
-  
-  document.getElementById('modal-visita').style.display = 'flex'
-}
+// Bloco antigo removido.
 
-async function saveVisita() {
-  const v = {
-    unidade_id: document.getElementById('fv-unidade').value,
-    exposicao_id: document.getElementById('fv-exposicao').value,
-    presencas_totais: parseInt(document.getElementById('fv-total-expo').value) || 0,
-    dias_visitacao: parseInt(document.getElementById('fv-dias-visita').value) || 0,
-    qtd_alunos_sala: parseInt(document.getElementById('fv-qtd-mediadas').value) || 0, // Visitas mediadas
-    qtd_alunos_outros: parseInt(document.getElementById('fv-qtd-indiretos').value) || 0, // Indiretos
-    presencas_integradas: parseInt(document.getElementById('fv-integradas-total').value) || 0,
-    qtd_acoes_integradas: parseInt(document.getElementById('fv-integradas-qtd').value) || 0,
-    cidades_atendidas: document.getElementById('fv-abrangencia').value,
-    nota_experiencia: parseInt(document.getElementById('fv-nota-exp-real').value),
-    nota_relevancia: parseInt(document.getElementById('fv-nota-rel').value),
-    comentarios: document.getElementById('fv-comentarios').value
-  }
-
-  const { error } = await db.from('visitas_mediadas').insert(v)
-  if (error) { alert('Erro ao salvar: ' + error.message); return }
-
-  registrarLog('registrou_relatorio_educativo', `Registrou relatório consolidado para expo.`)
-  document.getElementById('modal-visita').style.display = 'none'
-  loadVisitas()
-}
+// Código obsoleto removido para evitar conflitos com o Dashboard 2025.
 
 
 

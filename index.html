@@ -3723,7 +3723,7 @@ async function loadEducativo() {
           </div>`).join('')}
         <div style="display:flex;align-items:flex-end">
           <div style="background:var(--accent2);color:#fff;border-radius:10px;padding:10px 18px;font-family:'Fraunces',serif;font-size:18px;white-space:nowrap">
-            ${custoTotal ? 'R$ ' + custoTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'R$ —'}
+            ${custoTotal ? fmtMoney(custoTotal) : 'R$ —'}
             <div style="font-size:10px;font-weight:400;opacity:0.8;font-family:'DM Sans'">/mês estimado</div>
           </div>
         </div>
@@ -7177,7 +7177,7 @@ function exportarPlanejamentoPdf() {
        projHtml += `<div class="proj-group"><div class="proj-group-title">Projeto ${idx + 1}</div>`
        arr.forEach((e, eIdx) => {
           const isOu = eIdx > 0
-          const valor = e.valor_estimado ? parseFloat(e.valor_estimado).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : 'Não estimado'
+          const valor = e.valor_estimado ? fmtMoney(e.valor_estimado) : 'Não estimado'
           const espaco = typeof allEspacos !== 'undefined' ? allEspacos.find(s => s.id === e.espaco_id) : null
           const espNome = espaco ? espaco.nome : '—'
           

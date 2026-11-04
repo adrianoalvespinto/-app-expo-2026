@@ -700,9 +700,59 @@
   <div class="login-box">
     <div class="login-logo">SESC São Paulo</div>
     <div class="login-title">Gestão de<br><em>Exposições</em></div>
-    <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
-    <div class="field"><label>Senha</label><input type="password" id="login-password" placeholder="••••••••"></div>
-    <button class="btn-primary" id="btn-login">Entrar</button>
+
+    <!-- MODO 1: LOGIN NORMAL -->
+    <div id="login-form-main">
+      <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
+      <div class="field">
+        <label>Senha</label>
+        <div style="position:relative; display:flex; align-items:center;">
+          <input type="password" id="login-password" placeholder="••••••••" style="width:100%; padding-right:38px;">
+          <button type="button" onclick="togglePasswordVis('login-password', this)" title="Mostrar/ocultar senha" style="position:absolute; right:8px; background:none; border:none; cursor:pointer; font-size:15px; opacity:0.6;">👁️</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-login">Entrar</button>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:14px; text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarFormSolicitarSenha(true)" style="font-size:12px; color:var(--accent2); text-decoration:none; font-weight:500;">🔑 Cadastrar ou escolher nova senha (validação do Gestor)</a>
+        <a href="javascript:void(0)" onclick="enviarResetPorEmail()" style="font-size:11px; color:var(--muted); text-decoration:underline;">📧 Alterar minha senha via link por e-mail</a>
+      </div>
+    </div>
+
+    <!-- MODO 2: SOLICITAR NOVA SENHA / CADASTRO (VALIDADO PELO GESTOR) -->
+    <div id="login-form-solicitar" style="display:none;">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.4;">
+        Escolha sua nova senha abaixo. Ela passará a valer assim que for validada pelo Gestor na aba Admin.
+      </div>
+      <div class="field"><label>Seu Nome</label><input type="text" id="req-nome" placeholder="Nome e sobrenome"></div>
+      <div class="field"><label>Seu Email</label><input type="email" id="req-email" placeholder="seu@email.com"></div>
+      <div class="field">
+        <label>Escolha sua Nova Senha (mín. 6 caracteres)</label>
+        <div style="position:relative; display:flex; align-items:center;">
+          <input type="password" id="req-password" placeholder="••••••••" style="width:100%; padding-right:38px;">
+          <button type="button" onclick="togglePasswordVis('req-password', this)" title="Mostrar/ocultar senha" style="position:absolute; right:8px; background:none; border:none; cursor:pointer; font-size:15px; opacity:0.6;">👁️</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-req-senha" onclick="enviarSolicitacaoSenha()">Enviar para validação</button>
+      <div style="margin-top:12px; text-align:center;">
+        <a href="javascript:void(0)" onclick="mostrarFormSolicitarSenha(false)" style="font-size:12px; color:var(--muted); text-decoration:none;">← Voltar para o login</a>
+      </div>
+    </div>
+
+    <!-- MODO 3: REDEFINIÇÃO VIA LINK DE E-MAIL (PASSWORD_RECOVERY) -->
+    <div id="login-form-recovery" style="display:none;">
+      <div style="font-size:12px; color:var(--accent2); font-weight:600; margin-bottom:12px; line-height:1.4;">
+        🔐 Link de e-mail confirmado! Digite sua nova senha abaixo:
+      </div>
+      <div class="field">
+        <label>Nova Senha</label>
+        <div style="position:relative; display:flex; align-items:center;">
+          <input type="password" id="rec-password" placeholder="••••••••" style="width:100%; padding-right:38px;">
+          <button type="button" onclick="togglePasswordVis('rec-password', this)" title="Mostrar/ocultar senha" style="position:absolute; right:8px; background:none; border:none; cursor:pointer; font-size:15px; opacity:0.6;">👁️</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-rec-save" onclick="salvarNovaSenhaRecovery()">Salvar nova senha</button>
+    </div>
+
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
@@ -2076,13 +2126,23 @@ let appInitialized = false;
 
 async function init() {
   try {
+    const isRecoveryHash = window.location.hash && window.location.hash.includes('type=recovery')
     const { data: { session }, error: sessionErr } = await db.auth.getSession()
     if (sessionErr) throw sessionErr;
-    if (session) await onLogin(session.user)
+    if (isRecoveryHash) {
+      mostrarFormRecovery()
+    } else if (session) {
+      await onLogin(session.user)
+    }
     
     db.auth.onAuthStateChange(async (event, session) => {
       console.log("AUTH EVENT:", event);
+      if (event === 'PASSWORD_RECOVERY') {
+        mostrarFormRecovery()
+        return
+      }
       if (event === 'SIGNED_IN') {
+        if (document.getElementById('login-form-recovery')?.style.display === 'block') return
         if (!currentUser || currentUser.id !== session?.user?.id || !appInitialized) {
           await onLogin(session.user)
         }
@@ -2240,19 +2300,40 @@ async function onLogin(user) {
     currentUser = user
     let { data: profile, error: fetchErr } = await db.from('usuarios').select('*').eq('id', user.id).single()
     
-    if (!profile || fetchErr) {
+    // Fallback por email caso o usuário tenha sido recriado no Auth com outro ID
+    if ((!profile || fetchErr) && user.email) {
+      const { data: byEmail } = await db.from('usuarios').select('*').ilike('email', user.email.trim()).limit(1).maybeSingle()
+      if (byEmail) profile = byEmail
+    }
+
+    if (!profile) {
       console.log("Perfil não encontrado, criando novo perfil:", user.email);
       const { data: newProfile, error: insErr } = await db.from('usuarios').insert({
         id: user.id, email: user.email,
         nome: user.user_metadata?.full_name || user.email.split('@')[0],
-        perfil: 'consultor'
+        perfil: 'consultor',
+        status_aprovacao: 'pendente_novo'
       }).select().single();
       if (!insErr) profile = newProfile;
       else console.error("Erro ao criar perfil:", insErr);
     }
 
+    // Se for um cadastro novo ainda não validado pelo Gestor, bloqueia a entrada
+    if (profile?.status_aprovacao === 'pendente_novo') {
+      await db.auth.signOut()
+      currentUser = null
+      currentProfile = null
+      const err = document.getElementById('login-error')
+      if (err) {
+        err.style.color = '#92400e'
+        err.textContent = '⏳ Seu cadastro foi recebido e aguarda validação do Gestor na aba Admin.'
+        err.style.display = 'block'
+      }
+      return
+    }
+
     currentProfile = profile
-    await db.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', user.id)
+    await db.from('usuarios').update({ ultimo_acesso: new Date().toISOString() }).eq('id', profile.id || user.id)
 
     const screenLogin = document.getElementById('login-screen');
     const screenApp = document.getElementById('app');
@@ -2280,6 +2361,148 @@ async function onLogin(user) {
   } catch (err) {
     console.error("CRASH NO LOGIN:", err);
     alert("Erro crítico no login: " + err.message);
+  }
+}
+
+function togglePasswordVis(inputId, btnEl) {
+  const inp = document.getElementById(inputId)
+  if (!inp) return
+  if (inp.type === 'password') {
+    inp.type = 'text'
+    if (btnEl) btnEl.textContent = '🙈'
+  } else {
+    inp.type = 'password'
+    if (btnEl) btnEl.textContent = '👁️'
+  }
+}
+
+function mostrarFormSolicitarSenha(mostrar) {
+  const err = document.getElementById('login-error')
+  if (err) err.style.display = 'none'
+  document.getElementById('login-form-main').style.display = mostrar ? 'none' : 'block'
+  document.getElementById('login-form-solicitar').style.display = mostrar ? 'block' : 'none'
+  document.getElementById('login-form-recovery').style.display = 'none'
+  if (mostrar) {
+    const emailAtual = document.getElementById('login-email')?.value?.trim() || ''
+    if (emailAtual) document.getElementById('req-email').value = emailAtual
+  }
+}
+
+function mostrarFormRecovery() {
+  document.getElementById('app').style.display = 'none'
+  document.getElementById('login-screen').style.display = 'flex'
+  document.getElementById('login-form-main').style.display = 'none'
+  document.getElementById('login-form-solicitar').style.display = 'none'
+  document.getElementById('login-form-recovery').style.display = 'block'
+}
+
+async function enviarSolicitacaoSenha() {
+  const nome = document.getElementById('req-nome').value.trim()
+  const email = document.getElementById('req-email').value.trim().toLowerCase()
+  const senha = document.getElementById('req-password').value
+  const err = document.getElementById('login-error')
+  const btn = document.getElementById('btn-req-senha')
+
+  err.style.display = 'none'
+  err.style.color = 'var(--accent)'
+
+  if (!email || !senha) {
+    err.textContent = 'Preencha seu e-mail e a nova senha desejada.'
+    err.style.display = 'block'
+    return
+  }
+  if (senha.length < 6) {
+    err.textContent = 'A senha deve ter pelo menos 6 caracteres.'
+    err.style.display = 'block'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  try {
+    const { data, error } = await db.rpc('solicitar_nova_senha', {
+      p_email: email,
+      p_nome: nome || email.split('@')[0],
+      p_nova_senha: senha
+    })
+    if (error) {
+      err.textContent = 'Erro ao registrar solicitação: execute o script 27-login-validacao-admin.sql no Supabase (' + error.message + ')'
+      err.style.display = 'block'
+      return
+    }
+    if (data && data.ok === false) {
+      err.textContent = data.erro || 'Não foi possível enviar a solicitação.'
+      err.style.display = 'block'
+      return
+    }
+    mostrarFormSolicitarSenha(false)
+    err.style.color = '#166534'
+    err.textContent = '✅ Solicitação enviada! Assim que o Gestor validar na aba Admin, sua nova senha estará liberada.'
+    err.style.display = 'block'
+  } catch (e) {
+    err.textContent = 'Erro inesperado: ' + e.message
+    err.style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Enviar para validação'
+  }
+}
+
+async function enviarResetPorEmail() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase()
+  const err = document.getElementById('login-error')
+  err.style.display = 'none'
+  err.style.color = 'var(--accent)'
+
+  if (!email) {
+    err.textContent = 'Digite seu e-mail no campo acima antes de clicar em alterar por e-mail.'
+    err.style.display = 'block'
+    document.getElementById('login-email').focus()
+    return
+  }
+
+  const redirectUrl = window.location.origin + window.location.pathname
+  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl })
+  if (error) {
+    err.textContent = 'Erro ao enviar e-mail: ' + error.message
+    err.style.display = 'block'
+    return
+  }
+  err.style.color = '#166534'
+  err.textContent = `📧 Link de confirmação enviado para ${email}! Verifique sua caixa de entrada e clique no link para definir a nova senha.`
+  err.style.display = 'block'
+}
+
+async function salvarNovaSenhaRecovery() {
+  const novaSenha = document.getElementById('rec-password').value
+  const err = document.getElementById('login-error')
+  const btn = document.getElementById('btn-rec-save')
+  err.style.display = 'none'
+  err.style.color = 'var(--accent)'
+
+  if (!novaSenha || novaSenha.length < 6) {
+    err.textContent = 'A nova senha deve ter pelo menos 6 caracteres.'
+    err.style.display = 'block'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Salvando...'
+  try {
+    const { data, error } = await db.auth.updateUser({ password: novaSenha })
+    if (error) {
+      err.textContent = 'Erro ao atualizar senha: ' + error.message
+      err.style.display = 'block'
+      return
+    }
+    window.history.replaceState(null, '', window.location.pathname)
+    document.getElementById('login-form-recovery').style.display = 'none'
+    document.getElementById('login-form-main').style.display = 'block'
+    showToast('Senha atualizada com sucesso!')
+    if (data?.user) await onLogin(data.user)
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Salvar nova senha'
   }
 }
 
@@ -2335,30 +2558,34 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnTour) btnTour.addEventListener('click', startTour)
 
   document.getElementById('btn-login').addEventListener('click', async () => {
-    const email = document.getElementById('login-email').value.trim()
+    const email = document.getElementById('login-email').value.trim().toLowerCase()
     const pass  = document.getElementById('login-password').value
     const btn = document.getElementById('btn-login')
     const err = document.getElementById('login-error')
+    err.style.color = 'var(--accent)'
     if (!email || !pass) { err.textContent = 'Preencha todos os campos.'; err.style.display = 'block'; return }
     btn.disabled = true; btn.textContent = 'Entrando...'; err.style.display = 'none'
     try {
       const { data, error } = await db.auth.signInWithPassword({ email, password: pass })
       if (error) { 
         console.error("LOGIN ERROR:", error);
-        const msg = (error.message === 'Invalid login credentials' ? 'Email ou senha incorretos.' : error.message);
+        const msg = (error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos. Se precisar, clique abaixo em "Cadastrar ou escolher nova senha".' : error.message);
         err.textContent = 'Erro: ' + msg;
         err.style.display = 'block';
-        alert("Erro ao entrar: " + msg);
+      } else if (data?.user) {
+        btn.textContent = 'Carregando painel...'
+        await onLogin(data.user)
       }
     } catch (e) {
       console.error("UNKNOWN LOGIN ERROR:", e);
       err.textContent = 'Erro inesperado: ' + e.message;
       err.style.display = 'block';
-      alert("Erro inesperado: " + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar'
     }
-    btn.disabled = false; btn.textContent = 'Entrar'
   })
 
+  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password').focus() })
   document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-login').click() })
   document.getElementById('btn-logout').addEventListener('click', () => db.auth.signOut())
 
@@ -5763,6 +5990,13 @@ async function loadAdmin() {
   
   const { data: users, error } = await db.from('usuarios').select('*').order('nome')
   if (error) { showToast('Erro ao carregar usuários', true); return }
+
+  const sortedUsers = [...(users || [])].sort((a, b) => {
+    const aPend = (a.status_aprovacao === 'pendente_senha' || a.status_aprovacao === 'pendente_novo') ? 0 : 1
+    const bPend = (b.status_aprovacao === 'pendente_senha' || b.status_aprovacao === 'pendente_novo') ? 0 : 1
+    if (aPend !== bPend) return aPend - bPend
+    return (a.nome || '').localeCompare(b.nome || '', 'pt-BR')
+  })
   
   let html = `
     <table class="admin-table">
@@ -5770,30 +6004,49 @@ async function loadAdmin() {
         <tr>
           <th>Usuário</th>
           <th>Perfil / Acesso</th>
+          <th>Validação de Senha</th>
           <th>Última Atividade</th>
         </tr>
       </thead>
       <tbody>
   `
   
-  users.forEach(u => {
+  sortedUsers.forEach(u => {
     const isMe = u.id === currentUser.id
     const dataAcesso = u.ultimo_acesso ? new Date(u.ultimo_acesso).toLocaleString('pt-BR') : 'Sem registro'
+    const isPendSenha = u.status_aprovacao === 'pendente_senha'
+    const isPendNovo  = u.status_aprovacao === 'pendente_novo'
+    const isPendente  = isPendSenha || isPendNovo
+
+    const validacaoCol = isPendente
+      ? `
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <span style="font-size:11px; font-weight:700; color:#92400e;">
+            ⏳ ${isPendNovo ? 'Novo cadastro aguardando validação' : 'Nova senha solicitada'}
+          </span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" onclick="validarSenhaUsuario('${u.id}', true)" style="background:#166534; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">✅ Validar</button>
+            <button type="button" onclick="validarSenhaUsuario('${u.id}', false)" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">❌ Recusar</button>
+          </div>
+        </div>
+      `
+      : `<span style="font-size:11px; color:#166534; font-weight:500;">✅ Ativo</span>`
     
     html += `
-      <tr>
+      <tr style="${isPendente ? 'background:#fffbeb;' : ''}">
         <td>
           <div style="font-weight:600">${u.nome} ${isMe ? '<small>(Você)</small>' : ''}</div>
           <div style="font-size:11px; color:var(--muted)">${u.email}</div>
         </td>
         <td>
-          <select class="admin-role-sel" onchange="updateUsuarioPerfil('${u.id}', this.value)" ${isMe ? 'disabled' : ''}>
+          <select class="admin-role-sel" id="admin-role-${u.id}" onchange="updateUsuarioPerfil('${u.id}', this.value)" ${isMe ? 'disabled' : ''}>
             <option value="gestor" ${u.perfil==='gestor'?'selected':''}>Gestor</option>
             <option value="assistente" ${u.perfil==='assistente'?'selected':''}>Assistente</option>
             <option value="secretaria" ${u.perfil==='secretaria'?'selected':''}>Secretaria</option>
             <option value="consultor" ${u.perfil==='consultor'?'selected':''}>Consultor</option>
           </select>
         </td>
+        <td>${validacaoCol}</td>
         <td class="last-access">${dataAcesso}</td>
       </tr>
     `
@@ -5801,6 +6054,26 @@ async function loadAdmin() {
   
   html += `</tbody></table>`
   container.innerHTML = html
+}
+
+async function validarSenhaUsuario(userId, aprovar) {
+  const selPerfil = document.getElementById('admin-role-' + userId)?.value || null
+  const { data, error } = await db.rpc('validar_senha_usuario', {
+    p_usuario_id: userId,
+    p_aprovar: aprovar,
+    p_perfil: selPerfil
+  })
+  if (error) {
+    showToast('Erro ao validar (verifique o script 27-login-validacao-admin.sql): ' + error.message, true)
+    return
+  }
+  if (data && data.ok === false) {
+    showToast(data.erro || 'Não foi possível validar', true)
+    return
+  }
+  showToast(aprovar ? '✅ Senha / acesso validado com sucesso!' : 'Solicitação recusada.')
+  await loadBaseData()
+  loadAdmin()
 }
 
 async function updateUsuarioPerfil(userId, novoPerfil) {

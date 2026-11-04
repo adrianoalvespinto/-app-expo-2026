@@ -4764,10 +4764,18 @@ async function loadMetasComparativo() {
   const realizadoPorAno = {};
   ANOS_HIST.forEach(ano => { realizadoPorAno[ano] = computeRealizadoPorUnidade(ano, expos, visitas); });
 
+  const extra2027Local = JSON.parse(localStorage.getItem('edu_metas_2027_extra') || '{}');
   const metasPorAnoUnidade = {};
   metasDB.forEach(m => {
     if (!metasPorAnoUnidade[m.ano]) metasPorAnoUnidade[m.ano] = {};
     metasPorAnoUnidade[m.ano][m.unidade_id] = m;
+  });
+  if (!metasPorAnoUnidade[2027]) metasPorAnoUnidade[2027] = {};
+  Object.entries(extra2027Local).forEach(([uid, extraObj]) => {
+    if (!metasPorAnoUnidade[2027][uid]) metasPorAnoUnidade[2027][uid] = { unidade_id: uid, ano: 2027 };
+    if (metasPorAnoUnidade[2027][uid].num_expo_turma === undefined || metasPorAnoUnidade[2027][uid].num_expo_turma === null) {
+      metasPorAnoUnidade[2027][uid].num_expo_turma = extraObj.num_expo_turma;
+    }
   });
 
   // ── Totais (KPIs) por ano, somando todas as unidades ──
@@ -4835,13 +4843,13 @@ async function loadMetasComparativo() {
     <tr>
       <th style="${thStickyCorner}" rowspan="2">Unidade</th>
       ${ANOS_HIST.map(a => `<th style="${thBase};background:${yearBg[a]}" colspan="4">${a}</th>`).join('')}
-      <th style="${thBase};background:${sugBg}" colspan="4">2027 (estimativa)</th>
+      <th style="${thBase};background:${sugBg}" colspan="5">2027 (estimativa)</th>
     </tr>
     <tr>
       ${ANOS_HIST.map(a => `
         <th style="${th2Base};background:${yearBg[a]}">Meta Expo</th><th style="${th2Base};background:${yearBg[a]}">Meta Vis. Med.</th><th style="${th2Base};background:${yearBg[a]}">Realizado Expo</th><th style="${th2Base};background:${yearBg[a]};border-right:2px solid var(--border)">Realizado Vis. Med.</th>
       `).join('')}
-      <th style="${th2Base};background:${sugBg}">Meta Expo</th><th style="${th2Base};background:${sugBg}">Meta Vis. Med.</th><th style="${th2Base};background:${sugBg}">Sugestão Expo</th><th style="${th2Base};background:${sugBg}">Sugestão Vis. Med.</th>
+      <th style="${th2Base};background:${sugBg};width:72px">No. Expo (turma)</th><th style="${th2Base};background:${sugBg}">Meta Expo</th><th style="${th2Base};background:${sugBg}">Meta Vis. Med.</th><th style="${th2Base};background:${sugBg}">Sugestão Expo</th><th style="${th2Base};background:${sugBg}">Sugestão Vis. Med.</th>
     </tr>
   `;
 
@@ -4863,8 +4871,8 @@ async function loadMetasComparativo() {
     }).join('');
 
     const meta2027 = (metasPorAnoUnidade[2027] && metasPorAnoUnidade[2027][u.id]) || {};
-    const editCell = (field, val) => `
-      <td style="${tdStyle};background:#fffbeb;padding:0">
+    const editCell = (field, val, small = false) => `
+      <td style="${tdStyle};background:#fffbeb;padding:0;${small ? 'width:72px;max-width:72px;' : ''}">
         <input type="number" style="${inputStyle}" data-uid="${u.id}" data-field="${field}"
                value="${(val || val === 0) ? val : ''}"
                onblur="salvarMetaComparativo(this)"
@@ -4876,6 +4884,7 @@ async function loadMetasComparativo() {
       <tr>
         <td style="${tdStickyStyle};background:${stickyBg}">🏛️ ${u.nome}</td>
         ${histCols}
+        ${editCell('num_expo_turma', meta2027.num_expo_turma, true)}
         ${editCell('meta_exposicao', meta2027.meta_exposicao)}
         ${editCell('meta_mediadas', meta2027.meta_mediadas)}
         ${editCell('meta_exposicao_sugerida', meta2027.meta_exposicao_sugerida)}
@@ -4912,9 +4921,15 @@ async function salvarMetaComparativo(input) {
   const val = raw === '' ? null : parseFloat(raw);
 
   input.style.background = '#fef9c3';
+  if (field === 'num_expo_turma') {
+    const extra2027Local = JSON.parse(localStorage.getItem('edu_metas_2027_extra') || '{}');
+    if (!extra2027Local[uid]) extra2027Local[uid] = {};
+    extra2027Local[uid].num_expo_turma = val;
+    localStorage.setItem('edu_metas_2027_extra', JSON.stringify(extra2027Local));
+  }
   const payload = { unidade_id: uid, ano: 2027, [field]: val };
   const { error } = await db.from('educativo_metas').upsert(payload, { onConflict: 'unidade_id,ano' });
-  if (error) {
+  if (error && field !== 'num_expo_turma') {
     input.style.background = 'transparent';
     showToast('Erro ao salvar: ' + error.message, true);
     return;

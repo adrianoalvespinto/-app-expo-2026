@@ -121,8 +121,22 @@
   .filter-select:focus, .search-input:focus { outline: none; border-color: var(--accent2); }
 
   .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; position: relative; }
+
+  /* Modo Proposta: esconde campos não pertinentes a uma ideia ainda sem data/unidade definida */
+  .is-proposta .proposta-hide { display: none !important; }
+  .proposta-only { display: none !important; }
+  .is-proposta .proposta-only { display: inline-block !important; }
+
+  .banco-propostas-container { margin-bottom: 28px; padding: 18px; border: 1.5px dashed var(--muted); border-radius: var(--radius); background: var(--tag-bg); }
+  .banco-propostas-title { font-family: 'Fraunces', serif; font-size: 16px; color: var(--text); margin-bottom: 14px; display:flex; align-items:center; gap:8px; }
+  .banco-propostas-container .cards-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .banco-propostas-container .card { opacity: 0.92; border-style: dashed; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s; position: relative; }
   .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-1px); }
+  .card.card-encerrada { background: #f1f3f5; border-color: #e2e5e9; color: #6b7280; opacity: 0.72; box-shadow: none; filter: grayscale(0.75); }
+  .card.card-encerrada:hover { opacity: 0.92; filter: grayscale(0.3); box-shadow: var(--shadow); }
+  .card.card-encerrada .card-titulo, .card.card-encerrada .card-info { color: #6b7280 !important; }
+  .card.card-encerrada .card-progress-fill { background: #9ca3af; }
   .card-status-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 8px 8px 0 0; }
   .card-unidade { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
   .card-titulo { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 400; line-height: 1.3; margin-bottom: 12px; }
@@ -697,13 +711,14 @@
   <header>
     <div class="header-brand">SESC <span>/</span> <em>Exposições</em></div>
     <div class="header-right">
-      <button class="btn-tour" id="btn-tour" title="Tutorial de como usar">Como usar?</button>
+      <button class="btn-tour" id="btn-tour" title="Tutorial de como usar" style="display:none">Como usar?</button>
       <span class="user-badge" id="user-badge"></span>
       <button class="btn-logout" id="btn-logout">Sair</button>
     </div>
   </header>
   <nav>
-    <div class="nav-item active" data-page="geral" onclick="showPage('geral')">Visão Geral</div>
+    <div class="nav-item active" data-page="geral" onclick="showPage('geral')">Exposições</div>
+    <div class="nav-item" data-page="outras-acoes" onclick="showPage('outras-acoes')">Outras ações</div>
     <div class="nav-item" data-page="timeline" onclick="showPage('timeline')">Timeline</div>
     <div class="nav-item" data-page="aberturas" onclick="showPage('aberturas')">Calendário</div>
     <div class="nav-item" data-page="unidades" onclick="showPage('unidades')">Unidades</div>
@@ -717,10 +732,11 @@
     <!-- PAGINA: GERAL / DASHBOARD -->
     <div class="page active" id="page-geral">
       <div class="page-header">
-        <div class="page-title">Visão Geral <span id="ano-atual"></span></div>
+        <div class="page-title">Projetos Expositivos <span id="ano-atual"></span></div>
         <div style="display:flex; gap:10px;">
           <button class="btn-add" id="btn-exportar-pdf" style="background:var(--muted)" onclick="exportarCaderno()">📄 Caderno PDF</button>
           <button class="btn-add" id="btn-dashboard-premium" style="background:var(--accent2)" onclick="openBalancoAno()">📊 Balanço Executivo</button>
+          <button class="btn-add" id="btn-nova-proposta" style="background:var(--muted)" onclick="openExpModal(null, true)">+ Cadastrar Proposta</button>
           <button class="btn-add" id="btn-nova-exposicao">+ Nova Exposição</button>
         </div>
       </div>
@@ -761,7 +777,16 @@
           <select class="filter-select" id="filter-semestre"><option value="">Ambos os semestres</option><option>1o Semestre</option><option>2o Semestre</option></select>
         </div>
 
-        <div id="cards-container" class="cards-grid"><div class="loading">Carregando exposições...</div></div>
+        <div id="cards-container"><div class="loading">Carregando exposições...</div></div>
+      </div>
+
+      <!-- BANCO DE PROPOSTAS (não vinculado a ano) -->
+      <div id="geral-propostas" style="display:none; padding-top:16px;">
+        <div class="banco-propostas-container" style="margin-bottom:0;">
+          <div class="banco-propostas-title">Banco de Propostas</div>
+          <div style="font-size:12px; color:var(--muted); margin:-8px 0 16px;">Ideias de exposição que ainda não têm data ou unidade definida. Não entram em nenhuma estatística até serem migradas para uma exposição confirmada.</div>
+          <div id="cards-container-propostas"><div class="loading">Carregando propostas...</div></div>
+        </div>
       </div>
 
       <!-- VISÃO PLANEJAMENTO 2027 -->
@@ -993,8 +1018,8 @@
         <div class="kpi-grid" style="margin-bottom:24px" id="metas-kpi-grid">
           <div class="kpi-card"><div class="kpi-value" id="kpi-metas-expo">0</div><div class="kpi-label">Metas Exposições</div></div>
           <div class="kpi-card"><div class="kpi-value" id="kpi-metas-med">0</div><div class="kpi-label">Metas Visitas Mediadas</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-realizado-expo">0</div><div class="kpi-label">Realizado Exposições</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpi-realizado-med">0</div><div class="kpi-label">Realizado Visitas guiadas</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-realizado-expo">0</div><div class="kpi-label">Realizado Exposições</div><div class="kpi-sub" id="kpi-realizado-parcial-expo"></div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpi-realizado-med">0</div><div class="kpi-label">Realizado Visitas guiadas</div><div class="kpi-sub" id="kpi-realizado-parcial-med"></div></div>
         </div>
         <div id="metas-automatic-list"></div>
       </div>
@@ -1163,6 +1188,41 @@
       </div>
     </div>
 
+    <!-- PAGINA: OUTRAS AÇÕES -->
+    <div class="page" id="page-outras-acoes">
+      <div class="page-header">
+        <div class="page-title">Outras ações <span id="outras-ano-title"></span></div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-add" onclick="novaOutraAcao()">+ Nova ação</button>
+        </div>
+      </div>
+
+      <div class="ano-tabs" id="outras-ano-tabs"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-value" id="kpi-outras-total">0</div><div class="kpi-label">Ações</div><div class="kpi-sub" id="kpi-outras-total-sub">Neste ano</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-outras-ativas">0</div><div class="kpi-label">Em andamento / Abertas</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpi-outras-orcamento">R$ 0</div><div class="kpi-label">Orçamento estimado</div></div>
+      </div>
+
+      <div class="filters" style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
+        <input type="text" class="search-input" id="search-outras" placeholder="Buscar por título..." oninput="renderOutrasAcoes()">
+        <select id="filter-outras-tipo" class="search-input" style="max-width:200px;" onchange="renderOutrasAcoes()">
+          <option value="">Todos os tipos</option>
+          <option>Intervenção</option><option>Ambientação</option><option>Seminário</option><option>Performance</option><option>Instalação</option><option>Trocas e Olhares</option><option>Visitas Patrimoniais</option>
+        </select>
+        <select id="filter-outras-unidade" class="search-input" style="max-width:220px;" onchange="renderOutrasAcoes()">
+          <option value="">Todas as unidades</option>
+        </select>
+        <select id="filter-outras-status" class="search-input" style="max-width:180px;" onchange="renderOutrasAcoes()">
+          <option value="">Todos os status</option>
+          <option>Em tratativas</option><option>Em aprovação</option><option>Em produção</option><option>Aberta</option><option>Encerrada</option><option>Suspensa</option><option>Postergada</option><option>Cancelada</option>
+        </select>
+      </div>
+
+      <div id="outras-cards-container" style="margin-top:20px;"><div class="loading">Carregando...</div></div>
+    </div>
+
     <!-- Modal Detalhes FestA! -->
     <div id="modal-festa-info" class="modal-overlay">
       <div class="modal" style="max-width: 680px;">
@@ -1295,40 +1355,48 @@
         <div class="form-section-title">Identificação</div>
         <div class="form-grid">
           <div class="form-field full"><label>Título</label><input type="text" id="f-titulo" placeholder="Nome da exposição"></div>
-          <div class="form-field"><label>Unidade</label><select id="f-unidade"></select></div>
-          <div class="form-field"><label>Espaço</label><select id="f-espaco"><option value="">— Selecione a unidade —</option></select></div>
-          <div class="form-field full"><label>Assistentes</label>
+          <div class="form-field proposta-hide"><label>Unidade</label><select id="f-unidade"></select></div>
+          <div class="form-field proposta-hide"><label>Espaço</label><select id="f-espaco"><option value="">— Selecione a unidade —</option></select></div>
+          <div class="form-field full proposta-hide"><label>Assistentes</label>
             <div id="assistentes-checkboxes" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px;"></div>
+          </div>
+          <div class="form-field"><label>Tipo de ação</label>
+            <select id="f-tipo-acao">
+              <option>Exposição</option><option>Intervenção</option><option>Ambientação</option><option>Seminário</option><option>Performance</option><option>Instalação</option><option>Trocas e Olhares</option><option>Visitas Patrimoniais</option>
+            </select>
           </div>
           <div class="form-field"><label>Status</label>
             <select id="f-status">
               <option>Aberta</option><option>Em produção</option><option>Em aprovação</option>
               <option selected>Em tratativas</option><option>Suspensa</option>
+              <option>Proposta</option>
               <option>Postergada</option><option>Encerrada</option><option>Cancelada</option>
             </select>
           </div>
-          <div class="form-field"><label>Semestre</label>
+          <div class="form-field proposta-hide"><label>Semestre</label>
             <select id="f-semestre"><option value="">—</option><option>1o Semestre</option><option>2o Semestre</option></select>
           </div>
-          <div class="form-field"><label>Abertura</label><input type="date" id="f-abertura"></div>
-          <div class="form-field"><label>Encerramento</label><input type="date" id="f-encerramento"></div>
-          <div class="form-field"><label>Período previsto</label>
+          <div class="form-field proposta-hide"><label>Abertura</label><input type="date" id="f-abertura"></div>
+          <div class="form-field proposta-hide"><label>Encerramento</label><input type="date" id="f-encerramento"></div>
+          <div class="form-field proposta-hide"><label>Período previsto</label>
             <div style="display:flex; align-items:center; gap:6px;">
               <select id="f-periodo-de" style="width:78px; flex:none;"><option value="">De</option></select>
               <span style="color:var(--muted); font-size:12px;">até</span>
               <select id="f-periodo-ate" style="width:78px; flex:none;"><option value="">Até</option></select>
             </div>
           </div>
-          <div class="form-field full" style="margin-top:-8px;"><div style="font-size:11px; color:var(--muted);">Se "Abertura" e "Encerramento" estiverem preenchidos, eles têm prioridade sobre o período previsto em qualquer exibição.</div></div>
-          <div class="form-field"><label>Capital / Interior</label>
+          <div class="form-field full proposta-hide" style="margin-top:-8px;"><div style="font-size:11px; color:var(--muted);">Se "Abertura" e "Encerramento" estiverem preenchidos, eles têm prioridade sobre o período previsto em qualquer exibição.</div></div>
+          <div class="form-field proposta-hide"><label>Capital / Interior</label>
             <select id="f-capital"><option value="">—</option><option>Capital</option><option>Interior</option></select>
           </div>
-          <div class="form-field"><label>Ano</label><input type="number" id="f-ano"></div>
-          <div class="form-field"><label>Orçamento Global (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-valor" placeholder="0,00"></div>
+          <div class="form-field proposta-hide"><label>Ano</label><input type="number" id="f-ano"></div>
+          <div class="form-field proposta-hide"><label>Orçamento Global (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this); atualizarPerCapita()" id="f-valor" placeholder="0,00"></div>
+          <div class="form-field proposta-hide"><label>Público Estimado</label><input type="number" min="0" id="f-publico-estimado" placeholder="0" oninput="atualizarPerCapita()"></div>
+          <div class="form-field proposta-hide"><label>Per capita (R$)</label><input type="text" id="f-per-capita" readonly tabindex="-1" placeholder="—" style="background:#ecfdf5;font-weight:700;color:#065f46;cursor:default"></div>
         </div>
       </div>
 
-      <div class="form-section">
+      <div class="form-section proposta-hide">
         <div class="form-section-title">Características e Parcerias</div>
         <div class="form-field full" style="margin-bottom: 12px">
           <label style="margin-bottom:8px">Características da Exposição</label>
@@ -1337,6 +1405,7 @@
             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-itinerancia"> Itinerância</label>
             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-inedita"> Inédita</label>
             <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-monografica"> Monográfica</label>
+            <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer"><input type="checkbox" id="f-is-acervo-sesc"> Acervo Sesc</label>
           </div>
         </div>
         <div class="form-field full"><label>Parcerias institucionais / Texto livre</label><input type="text" id="f-parceria" placeholder="Ex: Sesc Nacional, Masp..."></div>
@@ -1350,7 +1419,7 @@
         </div>
       </div>
 
-      <div class="form-section">
+      <div class="form-section proposta-hide">
         <div class="form-section-title">Visitação e Público</div>
         <div class="form-grid">
           <div class="form-field"><label>Visitas à exposição (meta)</label><input type="number" id="f-visitas-expo-meta" placeholder="0"></div>
@@ -1360,20 +1429,7 @@
         </div>
       </div>
 
-      <div class="form-section">
-        <div class="form-section-title">Valores Complementares</div>
-        <div class="form-grid">
-          <div class="form-field"><label>Cachê Curadoria (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cache-curadoria" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Cenotecnia (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-valor-cenotecnia" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Pré-Produção (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-valor-pre-producao" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Produção (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-producao" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Arquitetura (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-arquitetura" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Educativo (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-educativo" placeholder="0,00"></div>
-          <div class="form-field"><label>Valor Acessibilidade (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-acessibilidade" placeholder="0,00"></div>
-        </div>
-      </div>
-
-      <div class="form-section">
+      <div class="form-section proposta-hide">
         <div class="form-section-title">Educativo — Equipe Alocada</div>
         <div class="form-grid">
           <div class="form-field"><label>Estagiários</label><input type="number" id="f-edu-estagiarios" placeholder="0"></div>
@@ -1384,8 +1440,26 @@
         </div>
       </div>
 
-      <div class="form-section">
+      <div class="form-section proposta-hide">
+        <div class="form-section-title">Principais Contratações</div>
+        <div id="contratacoes-editor">
+          <div class="form-grid" style="margin-bottom: 14px;">
+            <div class="form-field"><label>Produção — Contrato (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-producao" placeholder="0,00"></div>
+            <div class="form-field"><label>Pré-Produção (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-valor-pre-producao" placeholder="0,00"></div>
+            <div class="form-field"><label>Cenotecnia (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-valor-cenotecnia" placeholder="0,00"></div>
+            <div class="form-field"><label>Educativo — Contrato (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-educativo" placeholder="0,00"></div>
+            <div class="form-field"><label>Acessibilidade (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-acessibilidade" placeholder="0,00"></div>
+          </div>
+          <div id="contratacoes-papeis-editor"></div>
+        </div>
+      </div>
+
+      <div class="form-section proposta-hide">
         <div class="form-section-title">Equipe</div>
+        <div class="form-grid" style="margin-bottom: 14px;">
+          <div class="form-field"><label>Cachê Curadoria (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cache-curadoria" placeholder="0,00"></div>
+          <div class="form-field"><label>Contrato Arquitetura (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-arquitetura" placeholder="0,00"></div>
+        </div>
         <div id="equipe-editor"></div>
       </div>
 
@@ -1396,12 +1470,22 @@
           <div class="form-field full"><label>Notas adicionais</label><textarea id="f-notas"></textarea></div>
           <div class="form-field full"><label>Referências / Links</label><input type="text" id="f-links"></div>
           <div class="form-field full"><label>Ficha Técnica / Histórico</label><textarea id="f-historico" placeholder="Ficha completa, release, fotos, remarcações..."></textarea></div>
+          <div class="form-field full">
+            <label>Arquivos Anexados <span style="font-weight:400; font-size:10px; color:var(--muted)">(PDF, Imagens, Planilhas ou Docs — máx. 2 MB por arquivo)</span></label>
+            <div id="exp-anexos-lista" style="display:flex; flex-direction:column; gap:6px; margin-bottom:8px;"></div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <input type="file" id="f-anexo-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp" style="display:none" onchange="uploadAnexoExposicao(this)">
+              <button type="button" class="btn-add" id="btn-anexar-arquivo" style="background:var(--tag-bg); color:var(--text); border:1px solid var(--border); padding:8px 14px; font-size:12px;" onclick="document.getElementById('f-anexo-upload').click()">📎 Anexar arquivo (até 2 MB)</button>
+              <span id="anexo-upload-status" style="font-size:11px; display:none;"></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-delete" id="modal-exp-delete" style="display:none">Excluir</button>
       <div style="display:flex;gap:10px">
+        <button class="btn-add proposta-only" style="background:var(--accent2)" id="btn-migrar-proposta" onclick="migrarProposta()">🔄 Migrar para Exposição Confirmada</button>
         <button class="btn-cancel" id="modal-exp-cancel">Cancelar</button>
         <button class="btn-save" id="modal-exp-save">Salvar</button>
       </div>
@@ -1507,6 +1591,16 @@
     <div class="modal-body">
       <input type="hidden" id="fv-exposicao-id">
       <input type="hidden" id="fv-unidade-id">
+
+      <div class="form-field" style="margin-bottom:16px;padding:12px;border:1px dashed #fcd34d;background:#fffbeb;border-radius:10px">
+        <label style="color:#92400e">Números parciais? Informe a data de corte</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="fv-parcial-em" style="max-width:180px">
+          <button type="button" class="btn-cancel" style="padding:5px 10px;font-size:11px" onclick="document.getElementById('fv-parcial-em').value=new Date().toLocaleDateString('sv-SE')">Hoje</button>
+          <button type="button" class="btn-cancel" style="padding:5px 10px;font-size:11px" onclick="document.getElementById('fv-parcial-em').value=''">Limpar</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Use para exposições em andamento: os números aparecerão com a tag “parcial de dd/mm”. Deixe em branco quando os dados forem finais.</div>
+      </div>
       
       <div class="form-section">
         <div class="form-section-title">1. Indicadores de Público e Impacto</div>
@@ -1780,7 +1874,7 @@
     </div>
 
     <div class="painel-tabs">
-      <div class="painel-tab active" data-tab="visao-geral">Visão Geral</div>
+      <div class="painel-tab active" data-tab="visao-geral">Projetos Expositivos</div>
       <div class="painel-tab" data-tab="cronograma">Cronograma</div>
     </div>
 
@@ -1903,7 +1997,7 @@ const oldDebug = document.getElementById('debug-box');
 if (oldDebug) oldDebug.remove();
 
 function renderAnoTabs() {
-  const anos = [ANO_BASE - 2, ANO_BASE - 1, ANO_BASE, ANO_BASE + 1]
+  const anos = [ANO_BASE - 2, ANO_BASE - 1, ANO_BASE, ANO_BASE + 1, ANO_BASE + 2]
   const containers = document.querySelectorAll('.ano-tabs-container')
   containers.forEach(container => {
     let html = anos.map(a => {
@@ -1914,6 +2008,7 @@ function renderAnoTabs() {
     // Aba Planejamento (Apenas na Visão Geral)
     if (!container.closest('.page') || container.closest('.page').id === 'page-geral') {
         html += `<button class="ano-tab ${anoVisaoGeral === 'planejamento' ? 'active' : ''}" style="margin-left:auto; background: var(--tag-bg); color: var(--accent); border-color: var(--accent);" onclick="setAnoVisaoGeral('planejamento')">Planejamento 2027</button>`
+        html += `<button class="ano-tab ${anoVisaoGeral === 'propostas' ? 'active' : ''}" style="background: var(--tag-bg); color: var(--muted); border-color: var(--muted);" onclick="setAnoVisaoGeral('propostas')">🗂️ Banco de Propostas</button>`
     }
     container.innerHTML = html
   })
@@ -1924,9 +2019,11 @@ function setAnoVisaoGeral(ano) {
   
   const gd = document.getElementById('geral-dash')
   const gp = document.getElementById('geral-planejamento')
+  const gpr = document.getElementById('geral-propostas')
   
   if (ano === 'planejamento') {
     if(gd) gd.style.display = 'none'
+    if(gpr) gpr.style.display = 'none'
     if(gp) gp.style.display = 'block'
     renderAnoTabs()
     if(currentPageId === 'geral' && typeof loadPlanejamentoGeral === 'function') {
@@ -1934,9 +2031,21 @@ function setAnoVisaoGeral(ano) {
     }
     return;
   }
+
+  if (ano === 'propostas') {
+    if(gd) gd.style.display = 'none'
+    if(gp) gp.style.display = 'none'
+    if(gpr) gpr.style.display = 'block'
+    renderAnoTabs()
+    if(currentPageId === 'geral' && typeof loadPropostasBanco === 'function') {
+      loadPropostasBanco()
+    }
+    return;
+  }
   
   if(gd) gd.style.display = 'block'
   if(gp) gp.style.display = 'none'
+  if(gpr) gpr.style.display = 'none'
 
   const anoStr = document.getElementById('ano-atual')
   if (anoStr) anoStr.textContent = ano
@@ -2107,6 +2216,7 @@ function showPage(pageId) {
   }
 
   if (pageId === 'geral' || pageId === 'exposicoes') loadExposicoes();
+  if (pageId === 'outras-acoes') loadOutrasAcoes();
   if (pageId === 'timeline') loadTimeline();
   if (pageId === 'colaboradores') loadColaboradores();
   if (pageId === 'educadores') loadEducadores();
@@ -2135,7 +2245,7 @@ async function onLogin(user) {
       const { data: newProfile, error: insErr } = await db.from('usuarios').insert({
         id: user.id, email: user.email,
         nome: user.user_metadata?.full_name || user.email.split('@')[0],
-        perfil: 'gestor'
+        perfil: 'consultor'
       }).select().single();
       if (!insErr) profile = newProfile;
       else console.error("Erro ao criar perfil:", insErr);
@@ -2165,10 +2275,53 @@ async function onLogin(user) {
 
     await loadBaseData()
     await loadExposicoes()
+    setupRealtimeSync()
     appInitialized = true;
   } catch (err) {
     console.error("CRASH NO LOGIN:", err);
     alert("Erro crítico no login: " + err.message);
+  }
+}
+
+let realtimeChannel = null
+let realtimeRefreshTimer = null
+
+function setupRealtimeSync() {
+  if (realtimeChannel) return
+  try {
+    const scheduleRefresh = (table) => {
+      if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer)
+      realtimeRefreshTimer = setTimeout(async () => {
+        // Não recarrega enquanto o usuário estiver editando um modal aberto na própria tela
+        if (document.querySelector('.modal-overlay.open')) return
+        if (table === 'unidades') {
+          await loadBaseData()
+          if (currentPageId === 'unidades') loadUnidades()
+        }
+        if (table === 'exposicoes') {
+          await loadExposicoes()
+          if (currentPageId === 'timeline') loadTimeline()
+          if (currentPageId === 'relatorios') loadRelatorios()
+          if (currentPageId === 'aberturas') loadAberturas()
+          if (anoVisaoGeral === 'propostas' && typeof loadPropostasBanco === 'function') loadPropostasBanco()
+        }
+        if (table === 'planejamento_2027' && anoVisaoGeral === 'planejamento') {
+          loadPlanejamentoGeral()
+        }
+        if (table === 'cronograma_tarefas' && painelExpId && document.getElementById('painel-lateral')?.classList.contains('open')) {
+          loadPainelCronograma(painelExpId)
+        }
+      }, 500)
+    }
+
+    realtimeChannel = db.channel('geavt-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exposicoes' }, () => scheduleRefresh('exposicoes'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => scheduleRefresh('unidades'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'planejamento_2027' }, () => scheduleRefresh('planejamento_2027'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cronograma_tarefas' }, () => scheduleRefresh('cronograma_tarefas'))
+      .subscribe()
+  } catch (err) {
+    console.warn('Realtime sync não pôde ser iniciado:', err)
   }
 }
 
@@ -2235,19 +2388,19 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.status-chk').forEach(chk => {
     chk.onchange = () => {
       updateStatusBtnLabel()
-      loadExposicoes()
+      applyVisaoGeralFilters()
     }
   })
 
   window.msSelectAll = () => {
     document.querySelectorAll('.status-chk').forEach(c => c.checked = true)
     updateStatusBtnLabel()
-    loadExposicoes()
+    applyVisaoGeralFilters()
   }
   window.msClear = () => {
     document.querySelectorAll('.status-chk').forEach(c => c.checked = false)
     updateStatusBtnLabel()
-    loadExposicoes()
+    applyVisaoGeralFilters()
   }
 })
 
@@ -2332,37 +2485,47 @@ function updateEspacoDropdown(unitId, selectedId = null) {
 }
 
 async function loadExposicoes() {
-  const assistente = document.getElementById('filter-assistente').value
-  
-  let queryStr = assistente 
-    ? '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes!inner(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
-    : '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+  const queryStr = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
 
-  let q = db.from('exposicoes').select(queryStr).eq('ano', anoVisaoGeral).order('titulo')
-  if (assistente) q = q.eq('exposicao_assistentes.usuario_id', assistente)
-
-  const unidade = document.getElementById('filter-unidade').value
-  if (unidade) q = q.eq('unidade_id', unidade)
+  let q = db.from('exposicoes').select(queryStr).eq('ano', anoVisaoGeral).neq('status', 'Proposta').eq('tipo_acao', 'Exposição').order('titulo')
   
-  // Regra Visão Geral:
+  // Regra Visão Geral para anos históricos:
   if (anoVisaoGeral <= 2025) {
     q = q.in('status', ['Aberta', 'Encerrada'])
-  } else {
-    const selectedStatus = Array.from(document.querySelectorAll('.status-chk:checked')).map(c => c.value)
-    if (selectedStatus.length > 0) q = q.in('status', selectedStatus)
   }
-
-  const semestre = document.getElementById('filter-semestre').value
-  if (semestre) q = q.eq('semestre', semestre)
 
   const { data, error } = await q;
   if (error) { console.error(error); return }
   allExposicoes = data || []
-  renderCards(allExposicoes)
-  renderKPIs(allExposicoes)
+  applyVisaoGeralFilters()
+}
+
+function applyVisaoGeralFilters() {
+  const s  = (document.getElementById('search')?.value || '').toLowerCase().trim()
+  const u  = document.getElementById('filter-unidade')?.value || ''
+  const a  = document.getElementById('filter-assistente')?.value || ''
+  const sm = document.getElementById('filter-semestre')?.value || ''
+  const stArr = anoVisaoGeral <= 2025
+    ? ['Aberta', 'Encerrada']
+    : Array.from(document.querySelectorAll('.status-chk:checked')).map(c => c.value)
+
+  const filtered = allExposicoes.filter(e => {
+    const matchSearch = !s ||
+      (e.titulo || '').toLowerCase().includes(s) ||
+      (e.exposicao_colaboradores || []).some(c => c.colaboradores?.nome?.toLowerCase().includes(s))
+    const matchStatus = stArr.length === 0 || stArr.includes(e.status)
+    const matchUnid = !u || e.unidade_id === u
+    const matchAst = !a || (e.exposicao_assistentes || []).some(x => x.usuario_id === a)
+    const matchSem = !sm || e.semestre === sm
+    return matchSearch && matchStatus && matchUnid && matchAst && matchSem
+  })
+
+  renderCards(filtered)
+  renderKPIs(filtered)
 }
 
 function renderKPIs(list) {
+  list = list.filter(e => e.status !== 'Proposta')
   const hoje = new Date()
   const em60dias = new Date(); em60dias.setDate(hoje.getDate() + 60)
   const ativos = ['Aberta','Em produção','Em aprovação','Em tratativas']
@@ -2532,23 +2695,19 @@ function getStatusPct(status) {
   return map[status] ?? 0
 }
 
-function renderCards(list) {
-  const c = document.getElementById('cards-container')
-  if (!list.length) {
-    c.innerHTML = `<div class="empty-state"><p>Nenhuma exposição encontrada <a href="javascript:openExpModal()">Adicionar a primeira</a></p></div>`
-    return
-  }
-  c.innerHTML = list.map(e => {
-    const pct = getStatusPct(e.status)
-    return `
-    <div class="card" onclick="openPainel('${e.id}')">
+function renderExpoCard(e) {
+  const pct = getStatusPct(e.status)
+  const abrirCard = e.status === 'Proposta' ? `openExpModal('${e.id}')` : `openPainel('${e.id}')`
+  const encerradaClass = e.status === 'Encerrada' ? ' card-encerrada' : ''
+  return `
+    <div class="card${encerradaClass}" onclick="${abrirCard}">
       <div class="card-status-bar ${bc(e.status)}"></div>
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 6px;">
         <div class="card-unidade" style="margin-bottom:0; max-width:60%;">${e.unidades?.nome || 'Sem unidade'}</div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px;">
           ${e.parceria ? `<div style="font-size:10px; background:#f4f4f5; color:#52525b; padding:2px 6px; border-radius:4px; border:1px solid #e4e4e7">🤝 ${e.parceria}</div>` : ''}
           <div style="display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end">
-            ${[ e.is_internacional ? 'Internacional' : null, e.is_itinerancia ? 'Itinerância' : null, e.is_inedita ? 'Inédita' : null, e.is_monografica ? 'Monográfica' : null ]
+            ${[ e.is_internacional ? 'Internacional' : null, e.is_itinerancia ? 'Itinerância' : null, e.is_inedita ? 'Inédita' : null, e.is_monografica ? 'Monográfica' : null, e.is_acervo_sesc ? 'Acervo Sesc' : null ]
               .filter(Boolean).map(flag => `<span style="font-size:9px; background:var(--bg); color:var(--muted); padding:2px 5px; border-radius:10px; font-weight:600; text-transform:uppercase; border:1px solid var(--border)">${flag}</span>`).join('')}
           </div>
         </div>
@@ -2556,35 +2715,60 @@ function renderCards(list) {
       <div class="card-titulo">${e.titulo}</div>
       <div class="card-meta">
         <span class="tag ${sc(e.status)}">${e.status||'—'}</span>
+        ${e.tipo_acao && e.tipo_acao !== 'Exposição' ? `<span class="tag" style="font-weight:700">${e.tipo_acao}</span>` : ''}
         ${e.semestre ? `<span class="tag">${e.semestre}</span>` : ''}
         ${e.capital_interior ? `<span class="tag">${e.capital_interior}</span>` : ''}
       </div>
       <div class="card-datas">📅 ${e.data_abertura ? fmtDate(e.data_abertura) : (periodoPrevistoDisplay(e)||'—')}${e.data_encerramento ? ' → '+fmtDate(e.data_encerramento) : ''}</div>
       <div class="card-info" style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600">👤 Assistentes: ${getAssistenteNomes(e)}</div>
       ${getEquipeCardText(e) ? `<div class="card-info" style="margin-top:2px;font-size:11px;opacity:0.8">${getEquipeCardText(e)}</div>` : ''}
+      ${(currentProfile?.perfil !== 'secretaria' && calcPerCapita(e) !== null) ? `<div style="margin-top:8px"><span title="Orçamento global ÷ público estimado" style="font-size:11px;font-weight:700;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 8px;border-radius:6px">👥 Per capita ${fmtMoney(calcPerCapita(e))}</span></div>` : ''}
       ${pct > 0 ? `<div class="card-progress"><div class="card-progress-bar"><div class="card-progress-fill" style="width:${pct}%"></div></div><div class="card-progress-label">${pct}% concluído</div></div>` : ''}
     </div>`
-  }).join('')
+}
+
+function renderCards(list) {
+  const c = document.getElementById('cards-container')
+
+  if (!list.length) {
+    c.innerHTML = `<div class="empty-state"><p>Nenhuma exposição encontrada <a href="javascript:openExpModal()">Adicionar a primeira</a></p></div>`
+    return
+  }
+
+  const sorted = [...list].sort((a, b) => {
+    const uA = (a.unidades?.nome || 'zzzz').trim()
+    const uB = (b.unidades?.nome || 'zzzz').trim()
+    const cmpU = uA.localeCompare(uB, 'pt-BR', { sensitivity: 'base' })
+    if (cmpU !== 0) return cmpU
+    return (a.titulo || '').localeCompare(b.titulo || '', 'pt-BR', { sensitivity: 'base' })
+  })
+
+  c.innerHTML = `<div class="cards-grid">${sorted.map(renderExpoCard).join('')}</div>`
+}
+
+async function loadPropostasBanco() {
+  const c = document.getElementById('cards-container-propostas')
+  if (!c) return
+  c.innerHTML = '<div class="loading">Carregando propostas...</div>'
+
+  const { data, error } = await db.from('exposicoes')
+    .select('*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))')
+    .eq('status', 'Proposta')
+    .order('titulo')
+
+  if (error) { console.error(error); c.innerHTML = '<div class="empty-state"><p>Erro ao carregar o Banco de Propostas.</p></div>'; return }
+
+  const propostas = data || []
+  if (!propostas.length) {
+    c.innerHTML = `<div class="empty-state"><p>Nenhuma proposta cadastrada ainda <a href="javascript:openExpModal(null, true)">Cadastrar a primeira</a></p></div>`
+    return
+  }
+  c.innerHTML = `<div class="cards-grid">${propostas.map(renderExpoCard).join('')}</div>`
 }
 
   ['search','filter-unidade','filter-assistente','filter-semestre'].forEach(id => {
     const el = document.getElementById(id)
-    if (el) el.addEventListener('input', () => {
-      const s  = document.getElementById('search').value.toLowerCase()
-      const u  = document.getElementById('filter-unidade').value
-      const a  = document.getElementById('filter-assistente').value
-      const sm = document.getElementById('filter-semestre').value
-      
-      const stArr = Array.from(document.querySelectorAll('.status-chk:checked')).map(c => c.value)
-
-      renderCards(allExposicoes.filter(e =>
-        (!s  || e.titulo.toLowerCase().includes(s)) &&
-        (stArr.length === 0 || stArr.includes(e.status)) && 
-        (!u  || e.unidade_id === u) &&
-        (!a  || (e.exposicao_assistentes||[]).some(x => x.usuario_id === a)) &&
-        (!sm || e.semestre === sm)
-      ))
-    })
+    if (el) el.addEventListener('input', applyVisaoGeralFilters)
   })
 
 // Listeners Unidades
@@ -2607,15 +2791,15 @@ document.getElementById('modal-exp-delete').addEventListener('click', deleteExpo
 
 const PAPEIS = ['Curador(a)','Produção','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Transporte','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Comunicação Visual']
 
-async function openExpModal(id = null) {
+async function openExpModal(id = null, isProposta = false, tipoPadrao = 'Exposição') {
   try {
     editingExpId = id
-    document.getElementById('modal-exp-title').textContent = id ? 'Editar Exposição' : 'Nova Exposição'
+    document.getElementById('modal-exp-title').textContent = id ? 'Editar Exposição' : (isProposta ? 'Cadastrar Proposta' : 'Nova Exposição')
     document.getElementById('modal-exp-delete').style.display = id ? 'block' : 'none'
     const fields = {
-      'titulo':'','unidade':'','status':'Em tratativas','semestre':'',
+      'titulo':'','unidade':'','tipo-acao': tipoPadrao,'status': isProposta ? 'Proposta' : 'Em tratativas','semestre':'',
       'abertura':'','encerramento':'','capital':'',
-      'ano': anoVisaoGeral,'valor':'','valor-pre-producao':'',
+      'ano': anoVisaoGeral,'valor':'','publico-estimado':'','valor-pre-producao':'',
       'cache-curadoria':'', 'valor-cenotecnia':'',
       'cont-producao':'', 'cont-arquitetura':'', 'cont-educativo':'', 'acessibilidade':'',
       'sinopse':'','notas':'','links':'','historico':'',
@@ -2623,18 +2807,27 @@ async function openExpModal(id = null) {
       'edu-estagiarios':'','edu-facilitador1':'','edu-facilitador2':'','edu-educador-social':'','edu-asa':'', 'parceria': '', 'imagem': ''
     }
     editingEquipe = {}
+    editingExpAnexos = []
+    const anexoStatusEl = document.getElementById('anexo-upload-status')
+    if (anexoStatusEl) { anexoStatusEl.style.display = 'none'; anexoStatusEl.textContent = '' }
+    const anexoInputEl = document.getElementById('f-anexo-upload')
+    if (anexoInputEl) anexoInputEl.value = ''
     PAPEIS.forEach(p => editingEquipe[p] = [])
     document.querySelectorAll('.chk-assistente').forEach(c => c.checked = false)
 
     if (id) {
       const e = await getExposicao(id)
       if (e) {
+        document.querySelector('#modal-exposicao .modal').classList.toggle('is-proposta', e.status === 'Proposta')
+        const parsedRef = parseLinksAndAnexos(e.referencias_links)
+        editingExpAnexos = parsedRef.anexos
         Object.assign(fields, {
-          'titulo': e.titulo, 'unidade': e.unidade_id||'',
+          'titulo': e.titulo, 'unidade': e.unidade_id||'', 'tipo-acao': e.tipo_acao||'Exposição',
           'status': e.status, 'semestre': e.semestre||'', 'abertura': e.data_abertura||'',
           'encerramento': e.data_encerramento||'',
           'capital': e.capital_interior||'', 'ano': e.ano, 
           'valor': fmtMoneyString(e.valor_estimado),
+          'publico-estimado': e.publico_estimado||'',
           'valor-pre-producao': fmtMoneyString(e.valor_pre_producao),
           'cache-curadoria': fmtMoneyString(e.cache_curadoria), 
           'valor-cenotecnia': fmtMoneyString(e.valor_cenotecnia),
@@ -2643,7 +2836,7 @@ async function openExpModal(id = null) {
           'cont-educativo': fmtMoneyString(e.contrato_educativo), 
           'acessibilidade': fmtMoneyString(e.acessibilidade),
           'sinopse': e.sinopse||'', 'notas': e.notas_adicionais||'',
-          'links': e.referencias_links||'', 'historico': e.historico_abertura||'',
+          'links': parsedRef.linksText, 'historico': e.historico_abertura||'',
           'visitas-expo-meta': e.visitas_expo_meta||'',
           'visitas-expo-estat': e.visitas_expo_estatistico||'',
           'visitas-med-meta': e.visitas_mediadas_meta||'',
@@ -2661,6 +2854,7 @@ async function openExpModal(id = null) {
         document.getElementById('f-is-itinerancia').checked = e.is_itinerancia || false
         document.getElementById('f-is-inedita').checked = e.is_inedita || false
         document.getElementById('f-is-monografica').checked = e.is_monografica || false
+        document.getElementById('f-is-acervo-sesc').checked = e.is_acervo_sesc || false
 
         let pDe = e.periodo_previsto_de || null, pAte = e.periodo_previsto_ate || null
         if (!pDe && e.periodo_previsto) {
@@ -2684,11 +2878,13 @@ async function openExpModal(id = null) {
         })
       }
     } else {
+      document.querySelector('#modal-exposicao .modal').classList.toggle('is-proposta', isProposta)
       if(typeof updateEspacoDropdown === 'function') updateEspacoDropdown(null)
       document.getElementById('f-is-internacional').checked = false
       document.getElementById('f-is-itinerancia').checked = false
       document.getElementById('f-is-inedita').checked = false
       document.getElementById('f-is-monografica').checked = false
+      document.getElementById('f-is-acervo-sesc').checked = false
       document.getElementById('f-periodo-de').innerHTML = mesesOptionsHtml(null, 'De')
       document.getElementById('f-periodo-ate').innerHTML = mesesOptionsHtml(null, 'Até')
     }
@@ -2709,7 +2905,7 @@ async function openExpModal(id = null) {
     
     // Máscara financeira para Secretaria
     if (isSec) {
-      const finFields = ['valor', 'cache-curadoria', 'valor-cenotecnia', 'cont-producao', 'cont-arquitetura', 'cont-educativo', 'acessibilidade']
+      const finFields = ['valor', 'valor-pre-producao', 'cache-curadoria', 'valor-cenotecnia', 'cont-producao', 'cont-arquitetura', 'cont-educativo', 'acessibilidade']
       finFields.forEach(f => {
         const el = document.getElementById('f-' + f)
         if (el) {
@@ -2719,19 +2915,28 @@ async function openExpModal(id = null) {
           el.disabled = true
         }
       })
+      const pc = document.getElementById('f-per-capita')
+      if (pc) { pc.value = ''; pc.placeholder = '🔒 Acesso Restrito' }
+    } else {
+      atualizarPerCapita()
     }
 
     // Travas para Consultor
+    const btnAnexar = document.getElementById('btn-anexar-arquivo')
     if (isCons) {
       document.getElementById('modal-exp-save').style.display = 'none'
       document.getElementById('modal-exp-delete').style.display = 'none'
-      document.getElementById('btn-gerar-cron').style.display = 'none'
+      const btnCron = document.getElementById('btn-gerar-cron')
+      if (btnCron) btnCron.style.display = 'none'
+      if (btnAnexar) btnAnexar.style.display = 'none'
     } else {
       document.getElementById('modal-exp-save').style.display = 'block'
       document.getElementById('modal-exp-delete').style.display = id ? 'block' : 'none'
+      if (btnAnexar) btnAnexar.style.display = 'inline-block'
     }
 
     renderEquipeEditor()
+    renderExpAnexos()
     document.getElementById('modal-exposicao').classList.add('open')
   } catch (err) {
     console.error('Erro ao abrir modal:', err)
@@ -2741,20 +2946,46 @@ async function openExpModal(id = null) {
 
 function closeExpModal() { document.getElementById('modal-exposicao').classList.remove('open'); editingExpId = null; document.querySelectorAll('.equipe-dropdown').forEach(d => d.remove()) }
 
+function migrarProposta() {
+  const statusEl = document.getElementById('f-status')
+  statusEl.value = 'Em tratativas'
+  statusEl.dispatchEvent(new Event('change'))
+  document.getElementById('modal-exp-title').textContent = 'Editar Exposição'
+  if (typeof showToast === 'function') showToast('Proposta liberada! Preencha unidade, datas e demais dados antes de salvar.')
+  document.getElementById('f-unidade')?.focus()
+}
+
+// Event listener update for f-status to auto-toggle UI
+document.getElementById('f-status').addEventListener('change', (e) => {
+  document.querySelector('#modal-exposicao .modal').classList.toggle('is-proposta', e.target.value === 'Proposta');
+});
+
 async function saveExposicao() {
-  const g = id => document.getElementById(id).value
+  try {
+    await _saveExposicaoImpl()
+  } catch (err) {
+    console.error('Erro ao salvar exposição:', err)
+    showToast('Erro ao salvar: ' + (err?.message || err), true)
+  }
+}
+
+async function _saveExposicaoImpl() {
+  // Getters tolerantes: se o campo não existir no HTML, retornam vazio em vez de lançar TypeError
+  const g = id => document.getElementById(id)?.value ?? ''
+  const gNum = id => { const v = g(id); return v ? parseFloat(v) : null }
+  const gInt = id => { const v = g(id); return v ? parseInt(v) : null }
+  const isEdit = !!editingExpId
   const titulo = g('f-titulo').trim()
   if (!titulo) { showToast('Informe o título', true); return }
   
   const assistentesCheckeds = Array.from(document.querySelectorAll('.chk-assistente:checked')).map(c => c.value);
-  const gNum = id => { const v = document.getElementById(id).value; return v ? parseFloat(v) : null }
-  const gInt = id => { const v = document.getElementById(id).value; return v ? parseInt(v) : null }
 
   const payload = {
     titulo, 
     unidade_id: g('f-unidade')||null,
     espaco_id: g('f-espaco')||null,
     status: g('f-status'), 
+    tipo_acao: g('f-tipo-acao') || 'Exposição',
     semestre: g('f-semestre')||null,
     data_abertura: g('f-abertura')||null, 
     data_encerramento: g('f-encerramento')||null,
@@ -2762,18 +2993,11 @@ async function saveExposicao() {
     periodo_previsto_ate: g('f-periodo-ate') ? parseInt(g('f-periodo-ate')) : null, 
     capital_interior: g('f-capital')||null,
     ano: gInt('f-ano') || new Date().getFullYear(),
-    valor_estimado: parseMoneyToInt(g('f-valor')),
-    valor_pre_producao: parseMoneyToInt(g('f-valor-pre-producao')),
-    cache_curadoria: parseMoneyToInt(g('f-cache-curadoria')),
-    valor_cenotecnia: parseMoneyToInt(g('f-valor-cenotecnia')),
-    contrato_producao: parseMoneyToInt(g('f-cont-producao')),
-    contrato_arquitetura: parseMoneyToInt(g('f-cont-arquitetura')),
-    contrato_educativo: parseMoneyToInt(g('f-cont-educativo')),
-    acessibilidade: parseMoneyToInt(g('f-acessibilidade')),
     sinopse: g('f-sinopse') || null,
     notas_adicionais: g('f-notas') || null,
-    referencias_links: g('f-links') || null,
+    referencias_links: serializeLinksAndAnexos(g('f-links'), editingExpAnexos),
     historico_abertura: g('f-historico') || null,
+    publico_estimado: gInt('f-publico-estimado'),
     visitas_expo_meta: gInt('f-visitas-expo-meta'),
     visitas_expo_estatistico: gInt('f-visitas-expo-estat'),
     visitas_mediadas_meta: gInt('f-visitas-med-meta'),
@@ -2783,17 +3007,35 @@ async function saveExposicao() {
     edu_facilitador2: gInt('f-edu-facilitador2'),
     edu_educador_social: gInt('f-edu-educador-social'),
     edu_asa: gInt('f-edu-asa'),
-    is_internacional: document.getElementById('f-is-internacional').checked,
-    is_itinerancia: document.getElementById('f-is-itinerancia').checked,
-    is_inedita: document.getElementById('f-is-inedita').checked,
-    is_monografica: document.getElementById('f-is-monografica').checked,
+    is_internacional: !!document.getElementById('f-is-internacional')?.checked,
+    is_itinerancia: !!document.getElementById('f-is-itinerancia')?.checked,
+    is_inedita: !!document.getElementById('f-is-inedita')?.checked,
+    is_monografica: !!document.getElementById('f-is-monografica')?.checked,
+    is_acervo_sesc: !!document.getElementById('f-is-acervo-sesc')?.checked,
     parceria: g('f-parceria') || null,
     imagem_url: g('f-imagem') || null
   }
 
+  // Campos financeiros: só entram no payload se o input existir e estiver habilitado
+  // (evita zerar no banco valores de campos que não estão no formulário)
+  const camposFinanceiros = {
+    valor_estimado: 'f-valor',
+    valor_pre_producao: 'f-valor-pre-producao',
+    cache_curadoria: 'f-cache-curadoria',
+    valor_cenotecnia: 'f-valor-cenotecnia',
+    contrato_producao: 'f-cont-producao',
+    contrato_arquitetura: 'f-cont-arquitetura',
+    contrato_educativo: 'f-cont-educativo',
+    acessibilidade: 'f-acessibilidade'
+  }
+  Object.entries(camposFinanceiros).forEach(([col, id]) => {
+    const el = document.getElementById(id)
+    if (el && !el.disabled) payload[col] = parseMoneyToInt(el.value)
+  })
+
   // Se for Perfil Secretaria, não enviamos campos financeiros no update para não zerá-los
   if (currentProfile?.perfil === 'secretaria' && editingExpId) {
-    ['valor_estimado', 'cache_curadoria', 'valor_cenotecnia', 'contrato_producao', 'contrato_arquitetura', 'contrato_educativo', 'acessibilidade'].forEach(k => delete payload[k])
+    ['valor_estimado', 'valor_pre_producao', 'cache_curadoria', 'valor_cenotecnia', 'contrato_producao', 'contrato_arquitetura', 'contrato_educativo', 'acessibilidade'].forEach(k => delete payload[k])
   }
   let expId = editingExpId
   if (editingExpId) {
@@ -2828,10 +3070,10 @@ async function saveExposicao() {
     })
   })
   if (toInsert.length) await db.from('exposicao_colaboradores').insert(toInsert)
-  const acao = editingExpId ? 'editou_exposicao' : 'criou_exposicao'
-  let detalhe = editingExpId ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
+  const acao = isEdit ? 'editou_exposicao' : 'criou_exposicao'
+  let detalhe = isEdit ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
   
-  if (editingExpId) {
+  if (isEdit) {
     const antiga = allExposicoes.find(x => x.id === editingExpId)
     const mudancas = detectarMudancas(antiga, payload, payload)
     if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
@@ -2839,8 +3081,9 @@ async function saveExposicao() {
   
   registrarLog(acao, detalhe, expId)
   closeExpModal()
-  showToast(editingExpId ? 'Exposição atualizada!' : 'Exposição criada!')
+  showToast(isEdit ? 'Registro atualizado!' : 'Registro criado!')
   await loadExposicoes()
+  if (currentPageId === 'outras-acoes') await loadOutrasAcoes()
 }
 
 async function deleteExposicao() {
@@ -2853,74 +3096,8 @@ async function deleteExposicao() {
   const { error } = await db.from('exposicoes').delete().eq('id', editingExpId)
   if (error) { showToast('Erro ao excluir: ' + error.message, true); return }
   registrarLog('excluiu_exposicao', `Excluiu a exposição "${exTitulo}"`, editingExpId)
-  closeExpModal(); showToast('Exposição excluída'); await loadExposicoes()
-}
-
-async function loadUnidades() {
-  const search = document.getElementById('search-unidade').value.toLowerCase()
-  const [{ data: unidades, error }, { data: todasExpos }] = await Promise.all([
-    db.from('unidades').select('*').order('nome'),
-    db.from('exposicoes').select('*').order('data_abertura')
-  ])
-  if (error) { console.error(error); return }
-  allUnidades = unidades || []
-  const filtered = allUnidades.filter(u => !search || u.nome.toLowerCase().includes(search))
-  const container = document.getElementById('unidades-container')
-  if (!filtered.length) { container.innerHTML = `<div class="empty-state"><p>Nenhuma unidade encontrada</p></div>`; return }
-  
-  const today = new Date(); today.setHours(0,0,0,0)
-  
-  container.innerHTML = `<div class="unidade-grid">` + filtered.map(u => {
-    const unitExpos = (todasExpos || []).filter(e => e.unidade_id === u.id)
-    const espacos = allEspacos.filter(s => s.unidade_id === u.id)
-    
-    // Calcular visitação total (ano atual)
-    const visitacaoTotal = unitExpos.filter(e => e.ano === today.getFullYear()).reduce((s,e) => s + (e.visitas_expo_estatistico||0) + (e.visitas_mediadas_estatistico||0), 0)
-    
-    // Determinar atual e próxima - Lógica mais robusta
-    const atual = unitExpos.find(e => e.status === 'Aberta') || 
-                  unitExpos.find(e => e.data_abertura && e.data_encerramento && new Date(e.data_abertura+'T12:00:00') <= today && new Date(e.data_encerramento+'T12:00:00') >= today)
-    
-    const proximasFuturas = unitExpos.filter(e => {
-      if (e.status === 'Aberta' || e.status === 'Encerrada' || e.status === 'Cancelada') return false
-      if (e.data_abertura && new Date(e.data_abertura+'T12:00:00') > today) return true
-      return ['Em produção', 'Em aprovação', 'Em tratativas'].includes(e.status)
-    }).sort((a,b) => {
-      if (!a.data_abertura) return 1
-      if (!b.data_abertura) return -1
-      return new Date(a.data_abertura) - new Date(b.data_abertura)
-    })
-    const proxima = proximasFuturas[0]
-    
-    return `
-      <div class="unidade-card" onclick="openUnitModal('${u.id}')">
-        <div>
-          <div class="unidade-card-type">${u.capital_interior || 'Unidade'}</div>
-          <div class="unidade-card-name">${u.nome}</div>
-        </div>
-        
-        <div class="unidade-expos-info">
-          <div class="unidade-expo-row">
-            <span class="unidade-expo-label">Em cartaz</span>
-            <span class="unidade-expo-title">${atual ? atual.titulo : '<span class="unidade-expo-empty">Nenhuma exposição ativa</span>'}</span>
-          </div>
-          <div class="unidade-expo-row">
-            <span class="unidade-expo-label">Próxima abertura</span>
-            <span class="unidade-expo-title">${proxima ? proxima.titulo : '<span class="unidade-expo-empty">Não agendada</span>'}</span>
-          </div>
-        </div>
-        
-        <div class="unidade-card-stats">
-          <div class="unidade-stat-item">
-            <div class="unidade-stat-value">${espacos.length}</div>
-            <div class="unidade-stat-label">Espaços</div>
-          </div>
-          <div class="unidade-stat-item">
-            <div class="unidade-stat-value">${visitacaoTotal.toLocaleString('pt-BR')}</div>
-            <div class="unidade-stat-label">Público ${today.getFullYear()}</div>
-          </div>
-        </div>
-      </div>`}).join('') + `</div>`
+  closeExpModal(); showToast('Registro excluído'); await loadExposicoes()
+  if (currentPageId === 'outras-acoes') await loadOutrasAcoes()
 }
 
 function openUnitModal(id = null) {
@@ -3506,11 +3683,11 @@ async function exportarTimelinePlanejamentoPdf() {
 window.exportarTimelinePlanejamentoPdf = exportarTimelinePlanejamentoPdf
 
 
-function renderEquipeEditor() {
-  const container = document.getElementById('equipe-editor')
-  if (!container) return
-  
-  const chunks = PAPEIS.map(papel => {
+const PAPEIS_CONTRATACOES = ['Produção','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Transporte','Empresa de Comunicação Visual']
+const PAPEIS_EQUIPE = ['Curador(a)','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação']
+
+function renderPapeisGrid(papeisList) {
+  const chunks = papeisList.map(papel => {
     const key = papel.replace(/\s/g,'_')
     const membros = (editingEquipe[papel] || [])
     const listaHtml = membros.map(m => `
@@ -3531,8 +3708,15 @@ function renderEquipeEditor() {
         </div>
       </div>`
   }).join('')
+  return `<div class="equipe-grid">${chunks}</div>`
+}
 
-  container.innerHTML = `<div class="equipe-grid">${chunks}</div>`
+function renderEquipeEditor() {
+  const contPapeis = document.getElementById('contratacoes-papeis-editor')
+  if (contPapeis) contPapeis.innerHTML = renderPapeisGrid(PAPEIS_CONTRATACOES)
+
+  const container = document.getElementById('equipe-editor')
+  if (container) container.innerHTML = renderPapeisGrid(PAPEIS_EQUIPE)
 }
 
 function filtrarEquipeDropdown(input, papel) {
@@ -3839,7 +4023,7 @@ async function loadVisitasMediadas(ano) {
   if (!visContainer) return;
   visContainer.innerHTML = '<div class="loading">Carregando relatório de visitas...</div>';
 
-  const { data: expos, error: errExpos } = await db.from('exposicoes').select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id, unidades(nome)');
+  const { data: expos, error: errExpos } = await db.from('exposicoes').select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id, tipo_acao, unidades(nome)');
   if (errExpos) { visContainer.innerHTML = '<div class="empty-state">Erro ao carregar exposições: ' + errExpos.message + '</div>'; return; }
 
   // Status sem data de encerramento esperada (tratados como "em aberto"):
@@ -3847,7 +4031,7 @@ async function loadVisitasMediadas(ano) {
 
   // Filtrar exposições que estavam abertas em algum momento do ano selecionado
   let exposFiltradas = (expos || []).filter(e => {
-    if (e.status === 'Cancelada' || e.status === 'Suspensa') return false;
+    if (e.status === 'Cancelada' || e.status === 'Suspensa' || e.status === 'Proposta') return false;
 
     const aberturaAno = e.data_abertura
       ? parseInt(e.data_abertura.substring(0, 4))
@@ -3962,7 +4146,7 @@ async function loadVisitasMediadas(ano) {
 
       html += `
         <div style="display:grid;grid-template-columns:1fr 120px 120px 120px 130px;border-bottom:1px solid var(--border);background:#fff">
-          <div style="padding:10px 16px 10px 24px;font-size:13px;color:var(--text);font-weight:500;">${e.titulo}</div>
+          <div style="padding:10px 16px 10px 24px;font-size:13px;color:var(--text);font-weight:500;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${e.titulo} ${tagParcial(v && v.parcial_em)}</div>
           <div style="padding:10px 6px;text-align:center;border-left:1px solid var(--border);font-weight:600">${totalGeral}</div>
           <div style="padding:10px 6px;font-size:13px;text-align:center;border-left:1px solid var(--border);color:var(--accent)">${mediadas}</div>
           <div style="padding:10px 6px;font-size:13px;text-align:center;border-left:1px solid var(--border)">${integradas}</div>
@@ -4024,7 +4208,12 @@ async function openVisitaModal(expoId, targetAno) {
     }
   }
 
+  const fvParcial = document.getElementById('fv-parcial-em');
+  if (fvParcial) fvParcial.value = '';
+
   if (v) {
+    // Data de parcial só vale para o registro do ano exato (não herda de outro ano)
+    if (fvParcial && v.parcial_em && (!v.ano || v.ano === targetAno)) fvParcial.value = String(v.parcial_em).substring(0, 10);
     document.getElementById('fv-presencas-totais').value = v.presencas_totais || '';
     document.getElementById('fv-dias-visitacao').value = v.dias_visitacao || '';
     document.getElementById('fv-presencas-integradas').value = v.presencas_integradas || '';
@@ -4130,7 +4319,8 @@ async function saveVisitaMediada() {
     nota_experiencia: parseFloat(document.getElementById('fv-nota-experiencia').value) || null,
     nota_relevancia: parseFloat(document.getElementById('fv-nota-relevancia').value) || null,
     comentarios: document.getElementById('fv-comentarios').value || '',
-    detalhe_acoes_json: acoes // Novo campo JSON
+    detalhe_acoes_json: acoes, // Novo campo JSON
+    parcial_em: document.getElementById('fv-parcial-em')?.value || null
   };
 
   const btnHtml = document.querySelector('#modal-visitas .btn-save')?.textContent || 'Salvar Formulário';
@@ -4208,7 +4398,7 @@ async function loadMetasEducativo(ano) {
   if (errUni) { container.innerHTML = '<div class="empty-state">Erro: ' + errUni.message + '</div>'; return; }
 
   // Buscar exposições
-  const { data: expos } = await db.from('exposicoes').select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id, unidades(nome)');
+  const { data: expos } = await db.from('exposicoes').select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id, tipo_acao, unidades(nome)');
 
   let mapMapExpos = {};
   (expos || []).forEach(e => mapMapExpos[e.id] = Number(e.ano));
@@ -4254,7 +4444,7 @@ async function loadMetasEducativo(ano) {
   const STATUS_SEM_FIM = new Set(['Aberta', 'Em produção', 'Postergada', 'Em cartaz']);
 
   let exposFiltradas = (expos || []).filter(e => {
-    if (e.status === 'Cancelada' || e.status === 'Suspensa') return false;
+    if (e.status === 'Cancelada' || e.status === 'Suspensa' || e.status === 'Proposta') return false; if (e.tipo_acao && e.tipo_acao !== 'Exposição') return false;
 
     // Ano de abertura: preferir data_abertura, fallback para campo ano
     const aberturaAno = e.data_abertura
@@ -4305,6 +4495,7 @@ async function loadMetasEducativo(ano) {
     }
     e._realizadoExpoUrl = rExpo;
     e._realizadoMedUrl = rMed;
+    e._parcialEm = (v && v.parcial_em) ? String(v.parcial_em).substring(0, 10) : null;
     
     porUnidade[uid].realizadoExpo += rExpo;
     porUnidade[uid].realizadoMed += rMed;
@@ -4355,7 +4546,7 @@ async function loadMetasEducativo(ano) {
       <div class="edu-unit-row" style="margin-bottom:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
         <div style="display:grid;grid-template-columns:${wCols};background:#f5f3ef;border-bottom:1px solid var(--border);align-items:stretch;">
           <div style="padding:12px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:flex-start">
-            🏛️ ${u.nome}
+            🏛️ ${u.nome}${u.expos.some(x => x._parcialEm) ? `<span title="Os totais da unidade incluem números parciais de exposições em andamento" style="margin-left:8px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;white-space:nowrap">inclui parcial</span>` : ''}
           </div>
           <div style="padding:12px 6px;text-align:center;border-left:1px solid rgba(0,0,0,0.05);font-weight:600;color:var(--accent2);display:flex;align-items:center;justify-content:center">${mExpoFmt}</div>
           <div style="padding:12px 6px;text-align:center;border-left:1px solid rgba(0,0,0,0.05);font-weight:600;color:var(--accent);display:flex;align-items:center;justify-content:center">${mMedFmt}</div>
@@ -4407,6 +4598,7 @@ async function loadMetasEducativo(ano) {
           <div style="padding:10px 16px 10px 30px;font-size:12.5px;color:${expoColor};font-weight:500;display:flex;align-items:center;gap:8px;">
             ↪ ${e.titulo}
             <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:10px;background:${badgeBg};color:${badgeColor};white-space:nowrap">${badgeLabel}</span>
+            ${tagParcial(e._parcialEm)}
           </div>
           <div style="padding:10px 6px;text-align:center;border-left:1px solid var(--border);color:var(--muted)"></div>
           <div style="padding:10px 6px;text-align:center;border-left:1px solid var(--border);color:var(--muted)"></div>
@@ -4434,6 +4626,11 @@ async function loadMetasEducativo(ano) {
   document.getElementById('kpi-metas-med').textContent = kpiMetaMedGlob.toLocaleString('pt-BR');
   document.getElementById('kpi-realizado-expo').textContent = kpiRealizadoExpoGlob.toLocaleString('pt-BR');
   document.getElementById('kpi-realizado-med').textContent = kpiRealizadoMedGlob.toLocaleString('pt-BR');
+  const temParcialAno = exposFiltradas.some(x => x._parcialEm);
+  ['kpi-realizado-parcial-expo', 'kpi-realizado-parcial-med'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = temParcialAno ? 'inclui dados parciais' : '';
+  });
 }
 
 function openMetaUnitModal(uid, nome, mExpo, mMed) {
@@ -4508,7 +4705,7 @@ function computeRealizadoPorUnidade(ano, expos, visitas) {
   const STATUS_SEM_FIM = new Set(['Aberta', 'Em produção', 'Postergada', 'Em cartaz']);
 
   let exposFiltradas = (expos || []).filter(e => {
-    if (e.status === 'Cancelada' || e.status === 'Suspensa') return false;
+    if (e.status === 'Cancelada' || e.status === 'Suspensa' || e.status === 'Proposta') return false; if (e.tipo_acao && e.tipo_acao !== 'Exposição') return false;
     const aberturaAno = e.data_abertura ? parseInt(e.data_abertura.substring(0, 4)) : (Number(e.ano) || ano);
     const encerramentoAno = e.data_encerramento
       ? parseInt(e.data_encerramento.substring(0, 4))
@@ -4540,6 +4737,7 @@ function computeRealizadoPorUnidade(ano, expos, visitas) {
     }
     resultado[uid].realizadoExpo += rExpo;
     resultado[uid].realizadoMed += rMed;
+    if (v && v.parcial_em) resultado[uid].temParcial = true;
   });
   return resultado;
 }
@@ -4553,7 +4751,7 @@ async function loadMetasComparativo() {
   if (errUni) { container.innerHTML = '<div class="empty-state">Erro: ' + errUni.message + '</div>'; return; }
 
   const { data: expos } = await db.from('exposicoes')
-    .select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id');
+    .select('id, titulo, status, ano, data_abertura, data_encerramento, unidade_id, tipo_acao');
   const { data: visitas } = await db.from('visitas_mediadas').select('*');
 
   let metasDB = [];
@@ -4659,7 +4857,7 @@ async function loadMetasComparativo() {
       return `
         <td style="${tdStyle};background:${rowBg}">${fmtN(meta.meta_exposicao)}</td>
         <td style="${tdStyle};background:${rowBg}">${fmtN(meta.meta_mediadas)}</td>
-        <td style="${tdStyle};background:${rowBg}">${fmtN(real.realizadoExpo)}</td>
+        <td style="${tdStyle};background:${rowBg}">${fmtN(real.realizadoExpo)}${real.temParcial ? ' <span title="Inclui números parciais de exposições em andamento" style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d">parcial</span>' : ''}</td>
         <td style="${tdStyle};background:${rowBg};${lastColBorder}">${fmtN(real.realizadoMed)}</td>
       `;
     }).join('');
@@ -4841,9 +5039,6 @@ async function loadAberturas() {
   
   // Remover duplicatas por Título + Unidade (caso existam registros duplicados no banco)
   const data = Array.from(new Map(rawData.map(item => [`${item.titulo}-${item.unidade_id}`, item])).values());
-  
-  // Sincronizar com global para permitir edição no painel
-  allExposicoes = data
   const today = new Date();
   let startMonth = today.getMonth();
   
@@ -4962,6 +5157,7 @@ const TAREFAS_SPEC = [
 ]
 
 let painelExpId = null
+let painelExpObj = null
 let painelTarefas = []
 let painelEquipe = []
 
@@ -4981,6 +5177,7 @@ async function openPainel(id) {
     }
     e = data
   }
+  painelExpObj = e
 
   document.getElementById('painel-unidade').innerHTML = `${e.unidades?.nome || '—'} ${e.unidade_espacos?.nome ? `<span class="unit-space-badge">${e.unidade_espacos.nome}</span>` : ''}`
   document.getElementById('painel-titulo').textContent = e.titulo
@@ -4988,10 +5185,12 @@ async function openPainel(id) {
   const metaEl = document.getElementById('painel-meta')
   metaEl.innerHTML = `
     <span class="tag ${sc(e.status)}" style="opacity:1.0; padding:6px 12px; font-size:12px;">${e.status || '—'}</span>
+    ${e.tipo_acao && e.tipo_acao !== 'Exposição' ? `<span class="tag" style="padding:6px 12px; font-size:12px; font-weight:700;">${e.tipo_acao}</span>` : ''}
     ${e.semestre ? `<span style="font-size:15px; opacity:0.85; font-weight:500;">${e.semestre}</span>` : ''}
     ${e.capital_interior ? `<span style="font-size:15px; opacity:0.85; font-weight:500;">${e.capital_interior}</span>` : ''}
     ${e.data_abertura ? `<span style="font-size:15px; opacity:0.9; font-weight:600;">📅 ${fmtDate(e.data_abertura)}${e.data_encerramento?' → '+fmtDate(e.data_encerramento):''}</span>` : (periodoPrevistoDisplay(e) ? `<span style="font-size:15px;opacity:0.9;font-weight:600;">📅 ${periodoPrevistoDisplay(e)}</span>` : '')}
     ${e.valor_estimado ? `<span style="font-size:14px; opacity:1.0; font-weight:800; color:#000; background:#a7f3d0; padding:4px 10px; border-radius:6px; margin-left:8px; letter-spacing:0.5px;">💰 ${isSec ? '<span style="font-size:10px">RESTRITO</span>' : fmtMoney(e.valor_estimado)}</span>` : ''}
+    ${(!isSec && calcPerCapita(e) !== null) ? `<span title="Orçamento global ÷ público estimado (${parseInt(e.publico_estimado).toLocaleString('pt-BR')})" style="font-size:14px; font-weight:800; color:#000; background:#bfdbfe; padding:4px 10px; border-radius:6px; margin-left:6px; letter-spacing:0.5px;">👥 ${fmtMoney(calcPerCapita(e))} per capita</span>` : ''}
   `
 
   document.getElementById('painel-assistentes').innerHTML = e.exposicao_assistentes?.length ? `👤 Assistentes: ${getAssistenteNomes(e)}` : '';
@@ -5015,6 +5214,7 @@ function closePainel() {
   document.getElementById('painel-overlay').classList.remove('open')
   document.body.style.overflow = ''
   painelExpId = null
+  painelExpObj = null
 }
 
 function setActiveTab(tab) {
@@ -5089,7 +5289,8 @@ async function salvarDatasEGerar() {
   }).eq('id', painelExpId)
   if (error) { showToast('Erro ao salvar datas', true); return }
   // Atualizar local
-  const exp = allExposicoes.find(x => x.id === painelExpId) || timelineExposicoes.find(x => x.id === painelExpId)
+  if (painelExpObj) { painelExpObj.data_abertura = abertura; painelExpObj.data_encerramento = encerramento }
+  const exp = allExposicoes.find(x => x.id === painelExpId) || timelineExposicoes.find(x => x.id === painelExpId) || painelExpObj
   if (exp) { exp.data_abertura = abertura; exp.data_encerramento = encerramento }
   if (painelTarefas.length && !confirm('Isso vai apagar e recriar todas as tarefas. Continuar?')) return
   await gerarCronograma()
@@ -5148,7 +5349,7 @@ function renderCronograma(exp) {
 }
 
 async function gerarCronograma() {
-  const exp = allExposicoes.find(x => x.id === painelExpId)
+  const exp = painelExpObj || allExposicoes.find(x => x.id === painelExpId)
   if (!exp || !exp.data_abertura) return
   const btn = document.getElementById('btn-gerar-cron')
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando...' }
@@ -5183,7 +5384,7 @@ async function updateTarefaStatus(id, status) {
   await db.from('tarefas').update({ status }).eq('id', id)
   const t = painelTarefas.find(x => x.id === id)
   if (t) t.status = status
-  const exp = allExposicoes.find(x => x.id === painelExpId)
+  const exp = painelExpObj || allExposicoes.find(x => x.id === painelExpId)
   if (exp) renderCronograma(exp)
 }
 
@@ -5201,11 +5402,33 @@ async function editarObsTarefa(id) {
   if (nova === null) return
   await db.from('tarefas').update({ observacoes: nova || null }).eq('id', id)
   t.observacoes = nova || null
-  const exp = allExposicoes.find(x => x.id === painelExpId)
+  const exp = painelExpObj || allExposicoes.find(x => x.id === painelExpId)
   if (exp) renderCronograma(exp)
 }
 
 // ── DADOS ──
+
+// ── PER CAPITA = Orçamento Global ÷ Público Estimado ──
+function calcPerCapita(e) {
+  const v = parseFloat(e?.valor_estimado)
+  const p = parseFloat(e?.publico_estimado)
+  if (!v || !p || p <= 0) return null
+  return v / p
+}
+function atualizarPerCapita() {
+  const out = document.getElementById('f-per-capita')
+  if (!out || currentProfile?.perfil === 'secretaria') return
+  const v = parseMoneyToInt(document.getElementById('f-valor')?.value)
+  const p = parseFloat(document.getElementById('f-publico-estimado')?.value)
+  out.value = (v && p > 0) ? fmtMoney(v / p) : ''
+}
+
+// ── TAG "parcial de dd/mm" (dados de atendimento de exposição em andamento) ──
+function fmtDataCurta(s) { if (!s) return ''; const [y,m,d] = String(s).substring(0,10).split('-'); return `${d}/${m}` }
+function tagParcial(dataStr) {
+  if (!dataStr) return ''
+  return `<span title="Números parciais, atualizados até ${fmtDate(String(dataStr).substring(0,10))}" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;white-space:nowrap">parcial de ${fmtDataCurta(dataStr)}</span>`
+}
 
 function fmtVal(v) {
   return (v !== null && v !== undefined && v !== '') ? v : '<span class="vazio">—</span>'
@@ -5336,54 +5559,34 @@ function normalizarPeriodoNoAno(previsao) {
 
 function renderPainelDados(e) {
   const el = document.getElementById('painel-dados-content')
-  const linha = (label, val) => `<div class="dados-item"><div class="dados-label">${label}</div><div class="dados-valor">${val}</div></div>`
-
-  // Montar seção equipe a partir de painelEquipe
   const isSec = currentProfile?.perfil === 'secretaria'
+
+  // Montar mapa de equipe por papel a partir de painelEquipe
   const porPapel = {}
   painelEquipe.forEach(ec => {
     if (!porPapel[ec.papel]) porPapel[ec.papel] = []
     if (ec.colaboradores) porPapel[ec.papel].push(ec.colaboradores.nome)
   })
-  const mapValores = {
-    'Curador(a)': { label: 'Cachê / Contrato', val: e.cache_curadoria, isMoney: true },
-    'Produção': { label: 'Contrato', val: e.contrato_producao, isMoney: false },
-    'Arquiteto(a)': { label: 'Contrato', val: e.contrato_arquitetura, isMoney: false },
-    'Educativo': { label: 'Contrato', val: e.contrato_educativo, isMoney: false },
-    'Acessibilidade': { label: 'Contrato', val: e.acessibilidade, isMoney: false },
-    'Empresa de Cenotecnia': { label: 'Orçamento', val: e.valor_cenotecnia, isMoney: true }
-  }
 
-  const rolesSet = new Set(Object.keys(porPapel))
-  Object.keys(mapValores).forEach(k => {
-    if (mapValores[k].val || mapValores[k].val === 0) rolesSet.add(k)
-  })
+  // Artistas
+  const artistasParticipantes = porPapel['Artista'] ? [...new Set(porPapel['Artista'])] : [];
 
-  // Ordenar funções (tentar manter Curador, Produtor, Arquiteto primeiro)
-  const ordem = ['Curador(a)', 'Produção', 'Arquiteto(a)', 'Educativo', 'Empresa de Cenotecnia']
-  const sortedRoles = Array.from(rolesSet).sort((a, b) => {
-    const idxA = ordem.indexOf(a); const idxB = ordem.indexOf(b);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.localeCompare(b);
-  })
-
-  const equipeHtml = sortedRoles.map(papel => {
-    const nomes = porPapel[papel] ? porPapel[papel].join(', ') : '<span style="color:var(--muted);font-style:italic;font-size:12px;font-weight:400">Não informado</span>'
-    const vInfo = mapValores[papel]
-    const valStr = (vInfo && vInfo.val !== null && vInfo.val !== undefined && vInfo.val !== '') 
-      ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px">${vInfo.label}</span>
-          <span style="font-family:'Fraunces',serif; font-size:15px; color:var(--primary); font-weight:500;">${isSec ? '<span style="font-size:10px;color:var(--muted)">RESTRITO</span>' : (vInfo.isMoney ? fmtMoney(vInfo.val) : vInfo.val)}</span>
-        </div>`
-      : ''
-    return `<div class="contrato-card" style="padding:16px;">
-              <div class="contrato-label">${papel}</div>
-              <div style="font-size:14px; font-weight:500; color:var(--text); line-height:1.4">${nomes}</div>
-              ${valStr}
-            </div>`
-  }).join('')
+  // Bloco Orçamento, Público Estimado e Per capita
+  const pcVal = calcPerCapita(e)
+  const tileOP = (label, valor, destaque) => `
+    <div style="background:${destaque ? '#ecfdf5' : 'var(--bg)'};border:1px solid ${destaque ? '#a7f3d0' : 'var(--border)'};border-radius:8px;padding:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${destaque ? '#065f46' : 'var(--muted)'};margin-bottom:8px">${label}</div>
+      <div style="font-family:'Fraunces',serif;font-size:${destaque ? 22 : 18}px;${destaque ? 'font-weight:600;color:#065f46' : ''}">${valor}</div>
+    </div>`
+  const orcPubHtml = (e.valor_estimado || e.publico_estimado) ? `
+    <div class="dados-secao">
+      <div class="dados-secao-titulo">Orçamento e Público Estimado</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px">
+        ${tileOP('Orçamento Global', isSec ? '<span style="font-size:11px;color:var(--muted)">RESTRITO</span>' : (e.valor_estimado ? fmtMoney(e.valor_estimado) : '—'), false)}
+        ${tileOP('Público Estimado', e.publico_estimado ? parseInt(e.publico_estimado).toLocaleString('pt-BR') : '—', false)}
+        ${tileOP('Per capita', isSec ? '<span style="font-size:11px;color:var(--muted)">RESTRITO</span>' : (pcVal !== null ? fmtMoney(pcVal) : '—'), true)}
+      </div>
+    </div>` : ''
 
   // Bloco de Visitação/Público
   const temVisitacao = e.visitas_expo_meta || e.visitas_expo_estatistico || e.visitas_mediadas_meta || e.visitas_mediadas_estatistico
@@ -5416,20 +5619,112 @@ function renderPainelDados(e) {
       </div>
     </div>` : ''
 
-  const artistasParticipantes = porPapel['Artista'] ? [...new Set(porPapel['Artista'])] : [];
+  // Educativo — Equipe Alocada
+  const temEdu = e.edu_estagiarios || e.edu_facilitador1 || e.edu_facilitador2 || e.edu_educador_social || e.edu_asa
+  const eduRows = [
+    { cargo: 'Estagiários', qtd: e.edu_estagiarios },
+    { cargo: 'Facilitador I', qtd: e.edu_facilitador1 },
+    { cargo: 'Facilitador II', qtd: e.edu_facilitador2 },
+    { cargo: 'Educador Social', qtd: e.edu_educador_social },
+    { cargo: 'ASA', qtd: e.edu_asa }
+  ].filter(r => r.qtd)
+  const educativoHtml = eduRows.length ? `
+    <div class="dados-secao">
+      <div class="dados-secao-titulo">Educativo — Equipe Alocada</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+        ${eduRows.map(r => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:120px;text-align:center">
+            <div style="font-family:'Fraunces',serif;font-size:22px;color:var(--accent2);line-height:1">${r.qtd}</div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">${r.cargo}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : ''
+
+  // ── Helper: renderizar tabela de 3 colunas (Função | Nome | Valor) ──
+  const tabelaTresColunas = (titulo, itens) => {
+    if (!itens.length) return ''
+    const rows = itens.map(item => `
+      <tr>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">${item.funcao}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:500;color:var(--text)">${item.nome}</td>
+        <td style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-family:'Fraunces',serif;text-align:right;white-space:nowrap;color:var(--text)">${item.valor}</td>
+      </tr>
+    `).join('')
+    return `
+      <div class="dados-secao">
+        <div class="dados-secao-titulo">${titulo}</div>
+        <div style="overflow-x:auto;margin-top:4px">
+          <table style="width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <thead>
+              <tr style="background:var(--tag-bg)">
+                <th style="text-align:left;padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-bottom:2px solid var(--border)">Função</th>
+                <th style="text-align:left;padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-bottom:2px solid var(--border)">Nome</th>
+                <th style="text-align:right;padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);border-bottom:2px solid var(--border)">Valor (R$)</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`
+  }
+
+  // ── Principais Contratações (grandes serviços) ──
+  const contratacoesDefs = [
+    { funcao: 'Produção',              papel: 'Produção',                    valorCampo: e.contrato_producao },
+    { funcao: 'Pré-Produção',          papel: null,                          valorCampo: e.valor_pre_producao },
+    { funcao: 'Cenotecnia',            papel: 'Empresa de Cenotecnia',       valorCampo: e.valor_cenotecnia },
+    { funcao: 'Iluminação',            papel: 'Empresa de Iluminação',       valorCampo: null },
+    { funcao: 'Audiovisual',           papel: 'Empresa de Audiovisual',      valorCampo: null },
+    { funcao: 'Transporte',            papel: 'Empresa de Transporte',       valorCampo: null },
+    { funcao: 'Comunicação Visual',    papel: 'Empresa de Comunicação Visual', valorCampo: null },
+    { funcao: 'Educativo (contrato)',   papel: 'Educativo',                   valorCampo: e.contrato_educativo },
+    { funcao: 'Acessibilidade',        papel: 'Acessibilidade',              valorCampo: e.acessibilidade }
+  ]
+  const contItens = contratacoesDefs.map(def => {
+    const nomes = def.papel && porPapel[def.papel] ? porPapel[def.papel].join(', ') : ''
+    const valor = def.valorCampo
+    if (!nomes && !valor) return null
+    return {
+      funcao: def.funcao,
+      nome: nomes || '<span style="color:var(--muted);font-style:italic">—</span>',
+      valor: isSec ? '<span style="font-size:10px;color:var(--muted)">RESTRITO</span>' : (valor ? fmtMoney(valor) : '—')
+    }
+  }).filter(Boolean)
+
+  // ── Equipe / Cachês (papeis individuais) ──
+  const equipeDefs = [
+    { funcao: 'Curadoria',             papel: 'Curador(a)',     valorCampo: e.cache_curadoria },
+    { funcao: 'Arquitetura',           papel: 'Arquiteto(a)',   valorCampo: e.contrato_arquitetura },
+    { funcao: 'Fotografia',            papel: 'Fotógrafo(a)',   valorCampo: null },
+    { funcao: 'Museologia',            papel: 'Museólogo(a)',   valorCampo: null },
+    { funcao: 'Design',                papel: 'Designer',       valorCampo: null },
+    { funcao: 'Iluminação (pessoa)',    papel: 'Iluminação',     valorCampo: null }
+  ]
+  const equipItens = equipeDefs.map(def => {
+    const nomes = def.papel && porPapel[def.papel] ? porPapel[def.papel].join(', ') : ''
+    const valor = def.valorCampo
+    if (!nomes && !valor) return null
+    return {
+      funcao: def.funcao,
+      nome: nomes || '<span style="color:var(--muted);font-style:italic">—</span>',
+      valor: isSec ? '<span style="font-size:10px;color:var(--muted)">RESTRITO</span>' : (valor ? fmtMoney(valor) : '—')
+    }
+  }).filter(Boolean)
+
+  const parsedRef = parseLinksAndAnexos(e.referencias_links)
 
   el.innerHTML = `
     ${e.sinopse ? `<div class="dados-secao"><div class="dados-secao-titulo">Sinopse</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${e.sinopse}</div></div>` : ''}
     ${artistasParticipantes.length ? `<div class="dados-secao"><div class="dados-secao-titulo">Artistas Participantes</div><div style="font-size:13px;line-height:1.8;color:var(--text)">${artistasParticipantes.map(a => `<span style="display:inline-block;background:var(--tag-bg);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:12px;margin:2px;">${a}</span>`).join('')}</div></div>` : ''}
-    <div class="dados-secao">
-      <div class="dados-secao-titulo">Equipe e Contratos</div>
-      <div class="contratos-container">
-        ${equipeHtml || '<span class="dados-valor vazio">Nenhuma equipe ou contrato registrado.</span>'}
-      </div>
-    </div>
+    ${orcPubHtml}
     ${visitacaoHtml}
+    ${educativoHtml}
+    ${tabelaTresColunas('Principais Contratações', contItens)}
+    ${tabelaTresColunas('Equipe', equipItens)}
     ${e.notas_adicionais ? `<div class="dados-secao"><div class="dados-secao-titulo">Notas adicionais</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${e.notas_adicionais}</div></div>` : ''}
-    ${e.referencias_links ? `<div class="dados-secao"><div class="dados-secao-titulo">Referências / Links</div><div style="font-size:13px">${e.referencias_links}</div></div>` : ''}
+    ${parsedRef.linksText ? `<div class="dados-secao"><div class="dados-secao-titulo">Referências / Links</div><div style="font-size:13px">${parsedRef.linksText}</div></div>` : ''}
+    ${parsedRef.anexos.length ? `<div class="dados-secao"><div class="dados-secao-titulo">Arquivos Anexados</div><div style="display:flex;flex-direction:column;gap:6px;">${parsedRef.anexos.map(a => `<a href="${a.url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent2);text-decoration:none;background:var(--tag-bg);padding:6px 10px;border-radius:6px;border:1px solid var(--border);">📎 <strong>${a.nome}</strong> ${a.size ? `<span style="color:var(--muted);font-size:10px;">(${(a.size/1024).toFixed(0)} KB)</span>` : ''}</a>`).join('')}</div></div>` : ''}
   `
 }
 
@@ -5509,7 +5804,7 @@ function detectarMudancas(antigo, novo, campos) {
   const mudancas = []
   const nomes = {
     titulo: 'Título', status: 'Status', unidade_id: 'Unidade', espaco_id: 'Espaço',
-    data_abertura: 'Abertura', data_encerramento: 'Encerramento', valor_estimado: 'Orçamento',
+    data_abertura: 'Abertura', data_encerramento: 'Encerramento', valor_estimado: 'Orçamento', publico_estimado: 'Público Estimado',
     ano: 'Ano', semestre: 'Semestre', nome: 'Nome', especialidade: 'Especialidade'
   }
   for (const k in campos) {
@@ -6734,6 +7029,8 @@ async function loadUnidades() {
     const exps = (eRes && eRes.data) ? eRes.data : []
     const spaces = (sRes && sRes.data) ? sRes.data : []
     allUnidades = units
+    allEspacos = spaces
+    const anoRef = typeof anoVisaoGeral === 'number' ? anoVisaoGeral : ANO_BASE
 
     // KPIs
     if (document.getElementById('kpi-uni-total')) document.getElementById('kpi-uni-total').textContent = units.length
@@ -6756,7 +7053,7 @@ async function loadUnidades() {
           
           const emCartaz = uExps.find(e => e.status === 'Aberta')
           const proximas = uExps.filter(e => e.data_abertura && e.data_abertura > hoje).sort((a,b) => a.data_abertura.localeCompare(b.data_abertura))
-          const pTotal = uExps.filter(e => e.ano == anoVisaoGeral).reduce((acc, e) => acc + (parseInt(e.visitas_expo_estat) || 0), 0)
+          const pTotal = uExps.filter(e => e.ano == anoRef).reduce((acc, e) => acc + (parseInt(e.visitas_expo_estatistico) || 0) + (parseInt(e.visitas_mediadas_estatistico) || 0), 0)
 
           return `
             <div class="dash-card unit-card-deep" onclick="openUnitModal('${u.id}')" style="cursor:pointer; transition:transform 0.2s; border:1px solid var(--border)">
@@ -6780,7 +7077,7 @@ async function loadUnidades() {
                   <div style="font-size:11px; opacity:0.7;">${proximas[0] ? fmtDate(proximas[0].data_abertura) : ''}</div>
                 </div>
                 <div style="text-align:right">
-                  <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoVisaoGeral}</div>
+                  <div style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-bottom:4px;">Público ${anoRef}</div>
                   <div style="font-size:18px; font-family:'Fraunces',serif; color:var(--accent); font-weight:700;">${pTotal.toLocaleString('pt-BR')}</div>
                 </div>
               </div>
@@ -6920,6 +7217,130 @@ async function loadPlanejamentoGeral() {
   document.getElementById('kpi-plan-valor').textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ttlValor);
 }
 
+// --- ANEXOS DA EXPOSIÇÃO (ATÉ 2 MB NO BUCKET 'Expos') ---
+let editingExpAnexos = []
+const ANEXOS_MARKER = '\n<!--ANEXOS_JSON:'
+const ANEXOS_END = '-->'
+
+function parseLinksAndAnexos(raw) {
+  if (!raw) return { linksText: '', anexos: [] }
+  const str = String(raw)
+  const idx = str.indexOf(ANEXOS_MARKER)
+  if (idx === -1) return { linksText: str, anexos: [] }
+  const linksText = str.slice(0, idx).trim()
+  const jsonStart = idx + ANEXOS_MARKER.length
+  const endIdx = str.indexOf(ANEXOS_END, jsonStart)
+  const jsonStr = endIdx !== -1 ? str.slice(jsonStart, endIdx) : str.slice(jsonStart)
+  try {
+    const parsed = JSON.parse(jsonStr)
+    return { linksText, anexos: Array.isArray(parsed) ? parsed : [] }
+  } catch (e) {
+    return { linksText, anexos: [] }
+  }
+}
+
+function serializeLinksAndAnexos(linksText, anexosArr) {
+  const cleanLinks = (linksText || '').trim()
+  const validAnexos = Array.isArray(anexosArr) ? anexosArr : []
+  if (!cleanLinks && validAnexos.length === 0) return null
+  if (validAnexos.length === 0) return cleanLinks
+  return `${cleanLinks}${ANEXOS_MARKER}${JSON.stringify(validAnexos)}${ANEXOS_END}`
+}
+
+function renderExpAnexos() {
+  const listEl = document.getElementById('exp-anexos-lista')
+  if (!listEl) return
+  const isCons = currentProfile?.perfil === 'consultor'
+  if (!editingExpAnexos.length) {
+    listEl.innerHTML = '<div style="font-size:11px; color:var(--muted); font-style:italic;">Nenhum arquivo anexado.</div>'
+    return
+  }
+  listEl.innerHTML = editingExpAnexos.map((a, idx) => {
+    const sizeLabel = a.size ? ` <span style="color:var(--muted); font-size:10px;">(${(a.size / 1024).toFixed(0)} KB)</span>` : ''
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:var(--tag-bg); border:1px solid var(--border); border-radius:6px;">
+        <a href="${a.url}" target="_blank" rel="noopener" style="font-size:12px; color:var(--accent2); text-decoration:none; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📎 ${a.nome}${sizeLabel}</a>
+        ${isCons ? '' : `<button type="button" class="btn-remove-espaco" onclick="removeExpAnexo(${idx})" title="Remover arquivo" style="padding:0 6px; font-size:15px; line-height:1;">&times;</button>`}
+      </div>
+    `
+  }).join('')
+}
+
+async function uploadAnexoExposicao(input) {
+  const file = input.files[0]
+  if (!file) return
+
+  const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
+  const statusEl = document.getElementById('anexo-upload-status')
+  statusEl.style.display = 'inline'
+
+  if (file.size > MAX_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
+    statusEl.textContent = `⚠️ Arquivo de ${sizeMB} MB excede o limite de 2 MB.`
+    statusEl.style.color = 'var(--accent)'
+    showToast(`O arquivo (${sizeMB} MB) ultrapassa o limite de 2 MB.`, true)
+    input.value = ''
+    return
+  }
+
+  statusEl.textContent = 'Enviando arquivo...'
+  statusEl.style.color = 'var(--muted)'
+
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `anexos/anexo_${Date.now()}_${safeName}`
+
+    const { error } = await db.storage
+      .from('Expos')
+      .upload(filePath, file)
+
+    if (error) {
+      console.error('Erro no upload do anexo:', error)
+      statusEl.textContent = `Erro: ${error.message}`
+      statusEl.style.color = 'var(--accent)'
+      input.value = ''
+      return
+    }
+
+    const { data: { publicUrl } } = db.storage
+      .from('Expos')
+      .getPublicUrl(filePath)
+
+    editingExpAnexos.push({
+      nome: file.name,
+      url: publicUrl,
+      path: filePath,
+      size: file.size
+    })
+
+    renderExpAnexos()
+    statusEl.textContent = '✅ Arquivo anexado! Clique em Salvar para confirmar.'
+    statusEl.style.color = '#1a3a2a'
+    showToast('Arquivo anexado!')
+  } catch (err) {
+    console.error(err)
+    statusEl.textContent = 'Erro inesperado no upload do anexo.'
+    statusEl.style.color = 'var(--accent)'
+  } finally {
+    input.value = ''
+  }
+}
+
+async function removeExpAnexo(idx) {
+  const item = editingExpAnexos[idx]
+  if (!item) return
+  editingExpAnexos.splice(idx, 1)
+  renderExpAnexos()
+  // Remove também do bucket do Supabase para não acumular arquivos órfãos
+  if (item.path) {
+    try {
+      await db.storage.from('Expos').remove([item.path])
+    } catch (e) {
+      console.warn('Não foi possível remover arquivo do storage:', e)
+    }
+  }
+}
+
 // --- UPLOAD DE IMAGEM PARA SUPABASE STORAGE ---
 async function uploadImage(input) {
   const file = input.files[0]
@@ -7041,6 +7462,15 @@ function renderPlanEntradas() {
                <div class="form-field"><label>Valor Estimado R$</label><input type="text" class="mask-money" oninput="maskCurrency(this)" placeholder="0,00" value="${fmtMoneyString(entry.valor_estimado || '')}" onchange="updatePlanEntry('${groupId}', ${eIdx}, 'valor_estimado', parseMoneyToInt(this.value))"></div>
                <div class="form-field"><label>Espaço Referência</label><select onchange="updatePlanEntry('${groupId}', ${eIdx}, 'espaco_id', this.value)"><option value="">—</option>${espacosOp(uid, entry.espaco_id)}</select></div>
                <div class="form-field full">
+                 <label>Status do Planejamento</label>
+                 <select onchange="updatePlanEntry('${groupId}', ${eIdx}, 'status_planejamento', this.value)">
+                   <option value="" ${!entry.status_planejamento ? 'selected' : ''}>Em elaboração</option>
+                   <option value="Validada" ${entry.status_planejamento === 'Validada' ? 'selected' : ''}>Validada</option>
+                   <option value="Aguarda Gerencia" ${entry.status_planejamento === 'Aguarda Gerencia' ? 'selected' : ''}>Aguarda Gerência</option>
+                   <option value="Suspensa" ${entry.status_planejamento === 'Suspensa' ? 'selected' : ''}>Suspensa</option>
+                 </select>
+               </div>
+               <div class="form-field full">
                  <label>Características da Exposição</label>
                  <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:6px;">
                    ${[['is_internacional','Internacional'],['is_itinerancia','Itinerância'],['is_inedita','Inédita'],['is_monografica','Monográfica']].map(([key,label]) => `
@@ -7051,7 +7481,17 @@ function renderPlanEntradas() {
                  </div>
                </div>
              </div>
-             <button class="chip-remove" style="color:var(--accent); font-size:11px; margin-top:8px" onclick="removePlanEntry('${groupId}', ${eIdx})">${isOU ? 'Remover Alternativa' : 'Remover esta exposição'}</button>
+             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
+               ${entry.migrada ? 
+                 `<span style="color: #166534; font-size: 11px; font-weight: 600; background: #dcfce7; padding: 4px 10px; border-radius: 20px;">✓ Já migrada</span>` 
+                 : 
+                 `<div style="display: flex; gap: 8px;">
+                   <button style="background: var(--accent2); color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;" onclick="migrarPlanejamentoGeral('${groupId}', ${eIdx}, '${uid}', 'Em tratativas')" title="(Em Tratativas)">Migrar para Visão Geral</button>
+                   <button style="background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;" onclick="migrarPlanejamentoGeral('${groupId}', ${eIdx}, '${uid}', 'Proposta')" title="(Proposta)">Mover para Propostas</button>
+                 </div>`
+               }
+               <button class="chip-remove" style="color:var(--accent); font-size:11px;" onclick="removePlanEntry('${groupId}', ${eIdx})">${isOU ? 'Remover Alternativa' : 'Remover esta exposição'}</button>
+             </div>
           </div>
          `
       })
@@ -7139,6 +7579,39 @@ async function savePlanejamento() {
    btn.textContent = 'Salvar Planejamento'
    document.getElementById('modal-planejamento').classList.remove('open')
    loadPlanejamentoGeral()
+}
+
+window.migrarPlanejamentoGeral = async function(groupId, eIdx, uid, targetStatus) {
+   if(!confirm(`Deseja criar um registro na Visão Geral com status "${targetStatus}" para este projeto?`)) return;
+   const entry = currentPlanEntradas[groupId][eIdx];
+   if(!entry) return;
+   
+   const sinopseCompleta = (entry.sinopse || '') + 
+     (entry.tema ? `\n\nTema sugerido: ${entry.tema}` : '') + 
+     (entry.curadoria ? `\nCuradoria sugerida: ${entry.curadoria}` : '');
+
+   const payload = {
+     titulo: entry.nome || 'Projeto sem título',
+     ano: entry.periodo_ano_de || 2027,
+     unidade_id: uid,
+     status: targetStatus,
+     sinopse: sinopseCompleta,
+     valor_estimado: entry.valor_estimado ? Number(entry.valor_estimado) : null,
+     is_internacional: entry.is_internacional || false,
+     is_itinerancia: entry.is_itinerancia || false,
+     is_inedita: entry.is_inedita || false,
+     is_monografica: entry.is_monografica || false
+   };
+   
+   const { data, error } = await db.from('exposicoes').insert([payload]);
+   if(error) {
+     showToast('Erro ao migrar: ' + error.message, true);
+     return;
+   }
+   
+   entry.migrada = true;
+   await savePlanejamento(); // Automatically saves and refreshes
+   showToast('Projeto migrado com sucesso!');
 }
 
 function abrirConfigExportacaoPlanejamento() {
@@ -7520,42 +7993,55 @@ function gerarRelatorioPremium() {
         <div class="expo-page">
           <div class="expo-landscape-grid">
             <div class="expo-col-info">
-              <div class="expo-header-box" style="margin-bottom:15px; border-left-width:6px">
-                <div class="expo-unidade-top" style="font-size:16px;">${e.unidades?.nome || 'a definir'}</div>
-                <h1 class="expo-titulo-premium" style="font-size:32px;">${e.titulo}</h1>
+              <div class="expo-header-box">
+                <div class="expo-unidade-top">📍 ${e.unidades?.nome || 'Unidade a definir'}</div>
+                <h1 class="expo-titulo-premium">${e.titulo}</h1>
               </div>
 
-
               <div class="info-grid-landscape">
-                <div class="info-row"><div class="info-label">Curadoria</div><div class="info-val" style="font-size:12px;">${curador}</div></div>
-                <div class="info-row"><div class="info-label">Produção</div><div class="info-val" style="font-size:12px;">${prod}</div></div>
-                <div class="info-row"><div class="info-label">Arquitetura</div><div class="info-val" style="font-size:12px;">${arq}</div></div>
-                <div class="info-row"><div class="info-label">Período</div><div class="info-val" style="font-size:11px;">${datas}</div></div>
-                <div class="info-row"><div class="info-label">Espaço</div><div class="info-val" style="font-size:11px;">${e.unidade_espacos?.nome || 'a definir'}</div></div>
-                <div class="info-row"><div class="info-label">Investimento</div><div class="info-val" style="font-size:11px;">${valor}</div></div>
-                <div class="info-row"><div class="info-label">Status</div><div class="info-val" style="font-size:11px;">${e.status}</div></div>
+                <div class="info-row"><div class="info-label">Curadoria</div><div class="info-val">${curador}</div></div>
+                <div class="info-row"><div class="info-label">Produção</div><div class="info-val">${prod}</div></div>
+                <div class="info-row"><div class="info-label">Arquitetura</div><div class="info-val">${arq}</div></div>
+                <div class="info-row"><div class="info-label">Período</div><div class="info-val">${datas}</div></div>
+                <div class="info-row"><div class="info-label">Espaço</div><div class="info-val">${e.unidade_espacos?.nome || 'a definir'}</div></div>
+                <div class="info-row"><div class="info-label">Status</div><div class="info-val">${e.status}</div></div>
+                <div class="info-row info-row-investimento">
+                  <div class="info-label">Investimento Estimado</div>
+                  <div class="info-val">${valor}</div>
+                </div>
               </div>
             </div>
 
             <div class="expo-col-visual">
-              <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;">
-                ${tags.map(t => `<span class="pdf-badge" style="background:var(--accent2); color:#fff; border:none; padding:4px 12px; font-size:9px;">● ${t}</span>`).join('')}
-                ${e.parceria ? `<span class="pdf-badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:4px 12px; font-size:9px;">🤝 ${e.parceria}</span>` : ''}
+              ${(tags.length || e.parceria) ? `
+                <div class="expo-badges-bar">
+                  ${tags.map(t => `<span class="pdf-badge pdf-badge-tag">✦ ${t}</span>`).join('')}
+                  ${e.parceria ? `<span class="pdf-badge pdf-badge-parceria">🤝 Parceria: ${e.parceria}</span>` : ''}
+                </div>
+              ` : ''}
+              <div class="expo-visual-body layout-landscape ${(e.sinopse || artistasUnique.length) ? '' : 'no-texts'}">
+                <div class="expo-img-wrap">
+                  ${e.imagem_url
+                    ? `<img class="expo-adaptive-img" src="${e.imagem_url}" onload="adaptExpoImage(this)">`
+                    : `<div class="expo-img-16-9-land expo-hero-empty"><span>📷</span></div>`}
+                </div>
+                ${(e.sinopse || artistasUnique.length) ? `
+                  <div class="expo-texts-col">
+                    ${e.sinopse ? `
+                      <div class="expo-sinopse-land">
+                        <div class="section-title" style="margin-top:0;">Sinopse</div>
+                        <p>${e.sinopse}</p>
+                      </div>
+                    ` : ''}
+                    ${artistasUnique.length ? `
+                      <div class="expo-sinopse-land">
+                        <div class="section-title" style="margin-top:0;">Artistas Participantes</div>
+                        <p class="expo-artistas-p">${artistasUnique.join(' &nbsp;·&nbsp; ')}</p>
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : ''}
               </div>
-              ${e.imagem_url ? `<img class="expo-img-16-9-land" src="${e.imagem_url}" style="object-fit:cover">` : `<div class="expo-img-16-9-land expo-hero-empty"><span>📷</span></div>`}
-              
-              ${e.sinopse ? `
-                <div class="expo-sinopse-land">
-                  <div class="section-title" style="margin-top:0; font-size:9px; border-color:rgba(0,0,0,0.05)">Sinopse</div>
-                  <p>${e.sinopse}</p>
-                </div>
-              ` : ''}
-              ${artistasUnique.length ? `
-                <div class="expo-sinopse-land">
-                  <div class="section-title" style="margin-top:0; font-size:9px; border-color:rgba(0,0,0,0.05)">Artistas Participantes</div>
-                  <p style="display:block; overflow:hidden;">${artistasUnique.join(' &nbsp;·&nbsp; ')}</p>
-                </div>
-              ` : ''}
             </div>
           </div>
           <div class="page-footer-logo">GEAVT · SESC SÃO PAULO</div>
@@ -7587,32 +8073,95 @@ function gerarRelatorioPremium() {
       .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; text-align: center; font-size: 10px; text-transform: uppercase; color: #64748b; }
       .stat-box strong { display: block; font-size: 20px; color: var(--accent2); font-family: 'Fraunces', serif; margin-bottom: 2px; }
 
-      .expo-landscape-grid { display: flex; gap: 30px; height: 100%; align-items: flex-start; }
-      .expo-col-info { flex: 0 0 100mm; display: flex; flex-direction: column; }
-      .expo-col-visual { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+      .expo-landscape-grid { display: flex; gap: 28px; height: 100%; align-items: flex-start; }
+      .expo-col-info { flex: 0 0 88mm; display: flex; flex-direction: column; }
+      .expo-col-visual { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; gap: 12px; }
       
-      .info-grid-landscape { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 10px; }
+      .info-grid-landscape { display: grid; grid-template-columns: 1fr; gap: 9px; margin-top: 12px; }
       
-      .expo-img-16-9-land { width: 100%; height: 85mm; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); background-color:#f1f5f9; display: block; }
+      .expo-visual-body { flex: 1; min-height: 0; display: flex; gap: 20px; }
+      .expo-texts-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .expo-img-wrap { display: flex; align-items: center; justify-content: center; }
+      .expo-adaptive-img { display: block; width: auto; height: auto; max-width: 100%; max-height: 78mm; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+
+      /* Layout Paisagem (horizontal: ratio > 1.22) */
+      .expo-visual-body.layout-landscape { flex-direction: column; align-items: stretch; gap: 14px; }
+      .expo-visual-body.layout-landscape .expo-img-wrap { width: 100%; justify-content: flex-start; }
+      .expo-visual-body.layout-landscape .expo-adaptive-img { max-height: 76mm; max-width: 100%; }
+      .expo-visual-body.layout-landscape .expo-texts-col { width: 100%; }
+      .expo-visual-body.layout-landscape .expo-sinopse-land p { -webkit-line-clamp: 6; }
+
+      /* Layout Retrato (vertical: ratio < 0.88) */
+      .expo-visual-body.layout-portrait { flex-direction: row; align-items: flex-start; gap: 22px; }
+      .expo-visual-body.layout-portrait .expo-img-wrap { flex: 0 0 auto; max-width: 44%; max-height: 145mm; align-items: flex-start; }
+      .expo-visual-body.layout-portrait .expo-adaptive-img { max-height: 145mm; max-width: 100%; }
+      .expo-visual-body.layout-portrait .expo-texts-col { flex: 1; }
+      .expo-visual-body.layout-portrait .expo-sinopse-land p { -webkit-line-clamp: 12; }
+
+      /* Layout Quadrado (0.88 <= ratio <= 1.22) */
+      .expo-visual-body.layout-square { flex-direction: row; align-items: flex-start; gap: 22px; }
+      .expo-visual-body.layout-square .expo-img-wrap { flex: 0 0 auto; max-width: 45%; max-height: 125mm; align-items: flex-start; }
+      .expo-visual-body.layout-square .expo-adaptive-img { max-height: 118mm; max-width: 100%; }
+      .expo-visual-body.layout-square .expo-texts-col { flex: 1; }
+      .expo-visual-body.layout-square .expo-sinopse-land p { -webkit-line-clamp: 11; }
+
+      /* Quando não há sinopse nem artistas, aproveita o espaço todo para a obra */
+      .expo-visual-body.no-texts { flex-direction: column !important; align-items: center !important; justify-content: center !important; }
+      .expo-visual-body.no-texts .expo-img-wrap { max-width: 100% !important; max-height: 145mm !important; }
+      .expo-visual-body.no-texts .expo-adaptive-img { max-height: 145mm !important; max-width: 100% !important; }
+
+      .expo-img-16-9-land { width: 100%; height: 60mm; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); background-color:#f1f5f9; display: block; }
       .expo-hero-empty { display: flex; align-items: center; justify-content: center; font-size: 40px; opacity: 0.3; }
 
-      .expo-sinopse-land { background: #fcfcfd; padding: 15px; border-radius: 8px; border: 1px solid #f1f5f9; }
-      .expo-sinopse-land p { font-size: 11px; line-height: 1.6; color: #475569; margin: 0; text-align: justify; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+      .expo-sinopse-land { background: #f8fafc; padding: 16px 20px; border-radius: 10px; border: 1px solid #e2e8f0; border-left: 3px solid var(--accent2); }
+      .expo-sinopse-land .section-title { margin-top: 0; margin-bottom: 8px; padding-bottom: 6px; font-size: 10px; letter-spacing: 1.8px; border-color: rgba(26,58,42,0.12); }
+      .expo-sinopse-land p { font-size: 13.5px; line-height: 1.62; color: #334155; margin: 0; text-align: left; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+      .expo-sinopse-land p.expo-artistas-p { display: block; font-size: 13px; line-height: 1.55; font-weight: 500; color: #1e293b; -webkit-line-clamp: unset; }
 
-      .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); margin-top: 20px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-      .expo-header-box { border-left: 4px solid var(--accent2); padding-left: 20px; }
-      .expo-unidade-top { font-family: 'Fraunces', serif; font-size: 20px; color: #64748b; margin-bottom: 5px; }
-      .expo-titulo-premium { font-family: 'Fraunces', serif; font-size: 38px; margin: 0; line-height: 1.1; color: var(--accent2); }
+      .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--accent2); margin-top: 20px; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+      .expo-header-box { border-left: 5px solid var(--accent2); padding-left: 18px; margin-bottom: 14px; }
+      .expo-unidade-top { display: inline-block; background: var(--accent2); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.8px; padding: 6px 14px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(26,58,42,0.18); }
+      .expo-titulo-premium { font-family: 'Fraunces', serif; font-size: 30px; margin: 0; line-height: 1.15; color: var(--accent2); }
       
       .info-row { border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
-      .info-label { font-size: 8px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 2px; }
-      .info-val { font-size: 12px; color: #334155; font-weight: 500; }
+      .info-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8; font-weight: 700; margin-bottom: 3px; }
+      .info-val { font-size: 13px; color: #1e293b; font-weight: 500; line-height: 1.35; }
       
-      .pdf-badge { font-size: 7px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; background: #fff; color: #475569; padding: 4px 10px; border-radius: 20px; border: 1px solid #e2e8f0; }
+      .info-row-investimento { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #86efac; border-left: 5px solid var(--accent2); border-radius: 10px; padding: 10px 14px; margin-top: 4px; box-shadow: 0 4px 12px rgba(26,58,42,0.06); }
+      .info-row-investimento .info-label { font-size: 10px; color: var(--accent2); font-weight: 800; letter-spacing: 1.2px; margin-bottom: 4px; }
+      .info-row-investimento .info-val { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; color: var(--accent2); line-height: 1.15; }
+
+      .expo-badges-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; align-items: center; }
+      .pdf-badge { font-size: 11.5px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; padding: 7px 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+      .pdf-badge-tag { background: #fef3c7; color: #92400e; border: 1.5px solid #f59e0b; }
+      .pdf-badge-parceria { background: #eff6ff; color: #1e40af; border: 1.5px solid #93c5fd; }
       .page-footer-logo { position: absolute; bottom: 15mm; left: 20mm; font-size: 8px; letter-spacing: 3px; color: #cbd5e1; font-weight: 600; }
 
       @media print { .no-print { display: none !important; } }
-    </style></head><body>
+    </style>
+    <script>
+      function adaptExpoImage(img) {
+        const body = img.closest('.expo-visual-body');
+        if (!body) return;
+        const w = img.naturalWidth || 16;
+        const h = img.naturalHeight || 9;
+        const ratio = w / h;
+        body.classList.remove('layout-landscape', 'layout-portrait', 'layout-square');
+        if (ratio < 0.88) {
+          body.classList.add('layout-portrait');
+        } else if (ratio <= 1.22) {
+          body.classList.add('layout-square');
+        } else {
+          body.classList.add('layout-landscape');
+        }
+      }
+      window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.expo-adaptive-img').forEach(img => {
+          if (img.complete && img.naturalWidth) adaptExpoImage(img);
+        });
+      });
+    <\/script>
+    </head><body>
     <div class="no-print" style="position:fixed;top:20px;right:20px;z-index:999">
       <button onclick="window.print()" style="background:var(--accent2); color:#fff; border:none; padding:15px 30px; border-radius:8px; font-weight:700; cursor:pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.3)">🖨️ Salvar como PDF Premium</button>
     </div>
@@ -7686,6 +8235,77 @@ function gerarRelatorioSintetico() {
   const win = window.open('', '_blank')
   win.document.write(html)
   win.document.close()
+}
+
+// ============================================================
+// OUTRAS AÇÕES (exposicoes com tipo_acao <> 'Exposição')
+// ============================================================
+const TIPOS_ACAO = ['Exposição','Intervenção','Ambientação','Seminário','Performance','Instalação','Trocas e Olhares','Visitas Patrimoniais']
+let anoOutras = ANO_BASE
+let allOutrasAcoes = []
+
+function renderOutrasAnoTabs() {
+  const el = document.getElementById('outras-ano-tabs')
+  if (!el) return
+  const anos = [ANO_BASE - 2, ANO_BASE - 1, ANO_BASE, ANO_BASE + 1, ANO_BASE + 2]
+  el.innerHTML = anos.map(a => `<button class="ano-tab ${a === anoOutras ? 'active' : ''}" onclick="setAnoOutras(${a})">${a}${a > ANO_BASE ? '<span class="badge-futuro">próx.</span>' : ''}</button>`).join('')
+}
+
+function setAnoOutras(ano) { anoOutras = ano; loadOutrasAcoes() }
+
+function novaOutraAcao() {
+  openExpModal(null, false, 'Intervenção')
+}
+
+async function loadOutrasAcoes() {
+  renderOutrasAnoTabs()
+  const t = document.getElementById('outras-ano-title'); if (t) t.textContent = anoOutras
+  const c = document.getElementById('outras-cards-container')
+  if (c) c.innerHTML = '<div class="loading">Carregando...</div>'
+
+  const selU = document.getElementById('filter-outras-unidade')
+  if (selU && selU.options.length <= 1 && typeof allUnidades !== 'undefined' && allUnidades.length) {
+    selU.innerHTML = '<option value="">Todas as unidades</option>' + allUnidades.map(u => `<option value="${u.id}">${u.nome}</option>`).join('')
+  }
+
+  const queryStr = '*, unidades(nome), unidade_espacos(nome), exposicao_assistentes(usuario_id), exposicao_colaboradores(papel, colaboradores(nome))'
+  const { data, error } = await db.from('exposicoes').select(queryStr)
+    .eq('ano', anoOutras).neq('tipo_acao', 'Exposição').neq('status', 'Proposta').order('titulo')
+  if (error) {
+    console.error(error)
+    if (c) c.innerHTML = `<div class="empty-state"><p>Erro ao carregar: ${error.message}</p></div>`
+    return
+  }
+  allOutrasAcoes = data || []
+  renderOutrasAcoes()
+}
+
+function renderOutrasAcoes() {
+  const c = document.getElementById('outras-cards-container')
+  if (!c) return
+  const q = (document.getElementById('search-outras')?.value || '').toLowerCase()
+  const tp = document.getElementById('filter-outras-tipo')?.value || ''
+  const un = document.getElementById('filter-outras-unidade')?.value || ''
+  const st = document.getElementById('filter-outras-status')?.value || ''
+
+  const list = allOutrasAcoes.filter(e =>
+    (!q || (e.titulo || '').toLowerCase().includes(q)) &&
+    (!tp || e.tipo_acao === tp) &&
+    (!un || e.unidade_id === un) &&
+    (!st || e.status === st))
+
+  const ativos = ['Aberta', 'Em produção', 'Em aprovação']
+  const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v }
+  setT('kpi-outras-total', list.length)
+  setT('kpi-outras-total-sub', tp ? tp : 'Todos os tipos')
+  setT('kpi-outras-ativas', list.filter(e => ativos.includes(e.status)).length)
+  setT('kpi-outras-orcamento', 'R$ ' + list.reduce((a, e) => a + (parseFloat(e.valor_estimado) || 0), 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 }))
+
+  if (!list.length) {
+    c.innerHTML = '<div class="empty-state"><p>Nenhuma ação encontrada para este ano/filtro. Para mover uma exposição para cá, edite-a e mude o campo <b>Tipo de ação</b>.</p></div>'
+    return
+  }
+  c.innerHTML = `<div class="cards-grid">${list.map(renderExpoCard).join('')}</div>`
 }
 
 </script>

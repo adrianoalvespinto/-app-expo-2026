@@ -2531,8 +2531,11 @@ function setupRealtimeSync() {
         if (table === 'planejamento_2027' && anoVisaoGeral === 'planejamento') {
           loadPlanejamentoGeral()
         }
-        if (table === 'cronograma_tarefas' && painelExpId && document.getElementById('painel-lateral')?.classList.contains('open')) {
+        if (table === 'tarefas' && painelExpId && document.getElementById('painel-lateral')?.classList.contains('open')) {
           loadPainelCronograma(painelExpId)
+        }
+        if (table === 'usuarios' && currentPageId === 'admin') {
+          loadAdmin()
         }
       }, 500)
     }
@@ -2541,7 +2544,8 @@ function setupRealtimeSync() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exposicoes' }, () => scheduleRefresh('exposicoes'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => scheduleRefresh('unidades'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'planejamento_2027' }, () => scheduleRefresh('planejamento_2027'))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'cronograma_tarefas' }, () => scheduleRefresh('cronograma_tarefas'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tarefas' }, () => scheduleRefresh('tarefas'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, () => scheduleRefresh('usuarios'))
       .subscribe()
   } catch (err) {
     console.warn('Realtime sync não pôde ser iniciado:', err)

@@ -6022,11 +6022,11 @@ async function loadAdmin() {
       ? `
         <div style="display:flex; flex-direction:column; gap:6px;">
           <span style="font-size:11px; font-weight:700; color:#92400e;">
-            ⏳ ${isPendNovo ? 'Novo cadastro aguardando validação' : 'Nova senha solicitada'}
+            ⏳ ${isPendNovo ? 'Novo usuário: escolha o perfil ao lado e valide' : 'Nova senha solicitada'}
           </span>
           <div style="display:flex; gap:6px;">
-            <button type="button" onclick="validarSenhaUsuario('${u.id}', true)" style="background:#166534; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">✅ Validar</button>
-            <button type="button" onclick="validarSenhaUsuario('${u.id}', false)" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">❌ Recusar</button>
+            <button type="button" onclick="validarSenhaUsuario('${u.id}', true, ${isPendNovo})" style="background:#166534; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">✅ Validar</button>
+            <button type="button" onclick="validarSenhaUsuario('${u.id}', false, ${isPendNovo})" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; cursor:pointer;">❌ Recusar</button>
           </div>
         </div>
       `
@@ -6039,11 +6039,12 @@ async function loadAdmin() {
           <div style="font-size:11px; color:var(--muted)">${u.email}</div>
         </td>
         <td>
-          <select class="admin-role-sel" id="admin-role-${u.id}" onchange="updateUsuarioPerfil('${u.id}', this.value)" ${isMe ? 'disabled' : ''}>
-            <option value="gestor" ${u.perfil==='gestor'?'selected':''}>Gestor</option>
-            <option value="assistente" ${u.perfil==='assistente'?'selected':''}>Assistente</option>
-            <option value="secretaria" ${u.perfil==='secretaria'?'selected':''}>Secretaria</option>
-            <option value="consultor" ${u.perfil==='consultor'?'selected':''}>Consultor</option>
+          <select class="admin-role-sel" id="admin-role-${u.id}" ${isPendNovo ? 'style="border:1.5px solid #f59e0b; background:#fff;"' : `onchange="updateUsuarioPerfil('${u.id}', this.value)"`} ${isMe ? 'disabled' : ''}>
+            ${isPendNovo ? `<option value="" selected disabled>— Escolha o perfil —</option>` : ''}
+            <option value="gestor" ${!isPendNovo && u.perfil==='gestor'?'selected':''}>Gestor</option>
+            <option value="assistente" ${!isPendNovo && u.perfil==='assistente'?'selected':''}>Assistente</option>
+            <option value="secretaria" ${!isPendNovo && u.perfil==='secretaria'?'selected':''}>Secretaria</option>
+            <option value="consultor" ${!isPendNovo && u.perfil==='consultor'?'selected':''}>Consultor</option>
           </select>
         </td>
         <td>${validacaoCol}</td>
@@ -6056,8 +6057,19 @@ async function loadAdmin() {
   container.innerHTML = html
 }
 
-async function validarSenhaUsuario(userId, aprovar) {
-  const selPerfil = document.getElementById('admin-role-' + userId)?.value || null
+async function validarSenhaUsuario(userId, aprovar, isPendNovo = false) {
+  const roleSelect = document.getElementById('admin-role-' + userId)
+  const selPerfil = roleSelect?.value || null
+
+  if (aprovar && isPendNovo && !selPerfil) {
+    showToast('⚠️ Escolha o perfil (Gestor, Assistente, Secretaria ou Consultor) antes de validar!', true)
+    if (roleSelect) {
+      roleSelect.style.borderColor = '#dc2626'
+      roleSelect.focus()
+    }
+    return
+  }
+
   const { data, error } = await db.rpc('validar_senha_usuario', {
     p_usuario_id: userId,
     p_aprovar: aprovar,

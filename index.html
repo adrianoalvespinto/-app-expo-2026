@@ -992,6 +992,7 @@
           <option value="Artista">Artista</option>
           <option value="Fotógrafo(a)">Fotógrafo(a)</option>
           <option value="Museólogo(a)">Museólogo(a)</option>
+          <option value="Pesquisa">Pesquisa</option>
           <option value="Designer">Designer</option>
           <option value="Iluminação">Desenho de Luz</option>
           <option value="Educativo">Educativo</option>
@@ -1470,6 +1471,15 @@
       </div>
 
       <div class="form-section proposta-hide">
+        <div class="form-section-title">Equipe</div>
+        <div class="form-grid" style="margin-bottom: 14px;">
+          <div class="form-field"><label>Cachê Curadoria (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cache-curadoria" placeholder="0,00"></div>
+          <div class="form-field"><label>Contrato Arquitetura (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-arquitetura" placeholder="0,00"></div>
+        </div>
+        <div id="equipe-editor"></div>
+      </div>
+
+      <div class="form-section proposta-hide">
         <div class="form-section-title">Visitação e Público</div>
         <div class="form-grid">
           <div class="form-field"><label>Visitas à exposição (meta)</label><input type="number" id="f-visitas-expo-meta" placeholder="0"></div>
@@ -1502,15 +1512,6 @@
           </div>
           <div id="contratacoes-papeis-editor"></div>
         </div>
-      </div>
-
-      <div class="form-section proposta-hide">
-        <div class="form-section-title">Equipe</div>
-        <div class="form-grid" style="margin-bottom: 14px;">
-          <div class="form-field"><label>Cachê Curadoria (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cache-curadoria" placeholder="0,00"></div>
-          <div class="form-field"><label>Contrato Arquitetura (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this)" id="f-cont-arquitetura" placeholder="0,00"></div>
-        </div>
-        <div id="equipe-editor"></div>
       </div>
 
       <div class="form-section">
@@ -1745,6 +1746,7 @@
         <div class="form-field full"><label>Funções</label>
           <div class="funcao-checks" id="fc-funcao-checks">
             <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Curador(a)"> Curadoria</label>
+            <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Pesquisa"> Pesquisa</label>
             <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Produção"> Produção</label>
             <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Arquiteto(a)"> Arquitetura</label>
             <label class="funcao-check-label"><input type="checkbox" class="chk-funcao" value="Artista"> Artista</label>
@@ -3020,7 +3022,7 @@ document.getElementById('modal-exp-cancel').addEventListener('click', closeExpMo
 document.getElementById('modal-exp-save').addEventListener('click', saveExposicao)
 document.getElementById('modal-exp-delete').addEventListener('click', deleteExposicao)
 
-const PAPEIS = ['Curador(a)','Produção','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Transporte','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Comunicação Visual']
+const PAPEIS = ['Curador(a)','Pesquisa','Produção','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Transporte','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Comunicação Visual']
 
 async function openExpModal(id = null, isProposta = false, tipoPadrao = 'Exposição') {
   try {
@@ -3915,7 +3917,7 @@ window.exportarTimelinePlanejamentoPdf = exportarTimelinePlanejamentoPdf
 
 
 const PAPEIS_CONTRATACOES = ['Produção','Educativo','Acessibilidade','Empresa de Cenotecnia','Empresa de Iluminação','Empresa de Audiovisual','Empresa de Transporte','Empresa de Comunicação Visual']
-const PAPEIS_EQUIPE = ['Curador(a)','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação']
+const PAPEIS_EQUIPE = ['Curador(a)','Pesquisa','Arquiteto(a)','Artista','Fotógrafo(a)','Museólogo(a)','Designer','Iluminação']
 
 function renderPapeisGrid(papeisList) {
   const chunks = papeisList.map(papel => {
@@ -5941,6 +5943,7 @@ function renderPainelDados(e) {
   // ── Equipe / Cachês (papeis individuais) ──
   const equipeDefs = [
     { funcao: 'Curadoria',             papel: 'Curador(a)',     valorCampo: e.cache_curadoria },
+    { funcao: 'Pesquisa',              papel: 'Pesquisa',       valorCampo: null },
     { funcao: 'Arquitetura',           papel: 'Arquiteto(a)',   valorCampo: e.contrato_arquitetura },
     { funcao: 'Fotografia',            papel: 'Fotógrafo(a)',   valorCampo: null },
     { funcao: 'Museologia',            papel: 'Museólogo(a)',   valorCampo: null },

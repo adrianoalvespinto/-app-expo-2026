@@ -1444,6 +1444,15 @@
           <div class="form-field proposta-hide"><label>Orçamento Global (R$)</label><input type="text" class="mask-money" oninput="maskCurrency(this); atualizarPerCapita()" id="f-valor" placeholder="0,00"></div>
           <div class="form-field proposta-hide"><label>Público Estimado</label><input type="number" min="0" id="f-publico-estimado" placeholder="0" oninput="atualizarPerCapita()"></div>
           <div class="form-field proposta-hide"><label>Per capita (R$)</label><input type="text" id="f-per-capita" readonly tabindex="-1" placeholder="—" style="background:#ecfdf5;font-weight:700;color:#065f46;cursor:default"></div>
+          <div class="form-field full proposta-hide">
+            <label>Planilha de Mérito <span style="font-weight:400; font-size:10px; color:var(--muted)">(Excel, PDF ou Doc — máx. 5 MB)</span></label>
+            <div id="exp-merito-lista" style="margin-bottom:6px;"></div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <input type="file" id="f-merito-upload" accept=".xls,.xlsx,.ods,.csv,.pdf,.doc,.docx" style="display:none" onchange="uploadPlanilhaMerito(this)">
+              <button type="button" class="btn-add" id="btn-anexar-merito" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:7px 14px; font-size:12px; font-weight:600;" onclick="document.getElementById('f-merito-upload').click()">📊 Anexar Planilha de Mérito</button>
+              <span id="merito-upload-status" style="font-size:11px; display:none;"></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2012,6 +2021,38 @@
     <div class="modal-footer" style="margin-top: 20px;">
       <button class="btn-cancel" onclick="document.getElementById('modal-export-plan-config').classList.remove('open')">Cancelar</button>
       <button class="btn-save" onclick="exportarPlanejamentoPdf()">Gerar Relatório</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: LEMBRETE DE STATUS (ABERTA / ENCERRADA) PARA RESPONSÁVEIS -->
+<div class="modal-overlay" id="modal-lembrete-status">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-lembrete-title">📧 Notificar Responsáveis</div>
+      <button class="modal-close" onclick="document.getElementById('modal-lembrete-status').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 28px;">
+      <div id="lembrete-status-sub" style="font-size:13px; color:var(--text); line-height:1.5; margin-bottom:14px;"></div>
+      <div class="form-field full" style="margin-bottom:12px;">
+        <label>Destinatários (Assistentes Responsáveis)</label>
+        <input type="text" id="lembrete-destinatarios" placeholder="e-mail dos responsáveis separados por vírgula ou ponto e vírgula">
+      </div>
+      <div class="form-field full" style="margin-bottom:12px;">
+        <label>Assunto</label>
+        <input type="text" id="lembrete-assunto">
+      </div>
+      <div class="form-field full">
+        <label>Mensagem de Lembrete (gerada automaticamente com as pendências do card)</label>
+        <textarea id="lembrete-corpo" style="min-height:190px; font-size:12.5px; line-height:1.5;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <button type="button" class="btn-cancel" onclick="copiarLembreteStatus()">📋 Copiar Texto e E-mails</button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('modal-lembrete-status').classList.remove('open')">Agora não</button>
+        <button type="button" class="btn-save" onclick="abrirEmailLembreteStatus()">📧 Enviar por E-mail</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2932,6 +2973,10 @@ function renderExpoCard(e) {
   const pct = getStatusPct(e.status)
   const abrirCard = e.status === 'Proposta' ? `openExpModal('${e.id}')` : `openPainel('${e.id}')`
   const encerradaClass = e.status === 'Encerrada' ? ' card-encerrada' : ''
+  const parsedRefCard = parseLinksAndAnexos(e.referencias_links)
+  const meritoObj = parsedRefCard.merito
+  const showPc = currentProfile?.perfil !== 'secretaria' && calcPerCapita(e) !== null
+  const showMerito = currentProfile?.perfil !== 'secretaria' && !!meritoObj
   return `
     <div class="card${encerradaClass}" onclick="${abrirCard}">
       <div class="card-status-bar ${bc(e.status)}"></div>
@@ -2955,7 +3000,10 @@ function renderExpoCard(e) {
       <div class="card-datas">📅 ${e.data_abertura ? fmtDate(e.data_abertura) : (periodoPrevistoDisplay(e)||'—')}${e.data_encerramento ? ' → '+fmtDate(e.data_encerramento) : ''}</div>
       <div class="card-info" style="margin-top:6px;font-size:11px;color:var(--primary);font-weight:600">👤 Assistentes: ${getAssistenteNomes(e)}</div>
       ${getEquipeCardText(e) ? `<div class="card-info" style="margin-top:2px;font-size:11px;opacity:0.8">${getEquipeCardText(e)}</div>` : ''}
-      ${(currentProfile?.perfil !== 'secretaria' && calcPerCapita(e) !== null) ? `<div style="margin-top:8px"><span title="Orçamento global ÷ público estimado" style="font-size:11px;font-weight:700;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 8px;border-radius:6px">👥 Per capita ${fmtMoney(calcPerCapita(e))}</span></div>` : ''}
+      ${(showPc || showMerito) ? `<div style="margin-top:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        ${showPc ? `<span title="Orçamento global ÷ público estimado" style="font-size:11px;font-weight:700;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;padding:3px 8px;border-radius:6px">👥 Per capita ${fmtMoney(calcPerCapita(e))}</span>` : ''}
+        ${showMerito ? `<a href="${meritoObj.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir Planilha de Mérito: ${meritoObj.nome}" style="font-size:11px;font-weight:700;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;padding:3px 8px;border-radius:6px;text-decoration:none;">📊 Planilha de Mérito</a>` : ''}
+      </div>` : ''}
       ${pct > 0 ? `<div class="card-progress"><div class="card-progress-bar"><div class="card-progress-fill" style="width:${pct}%"></div></div><div class="card-progress-label">${pct}% concluído</div></div>` : ''}
     </div>`
 }
@@ -3041,10 +3089,15 @@ async function openExpModal(id = null, isProposta = false, tipoPadrao = 'Exposi�
     }
     editingEquipe = {}
     editingExpAnexos = []
+    editingExpMerito = null
     const anexoStatusEl = document.getElementById('anexo-upload-status')
     if (anexoStatusEl) { anexoStatusEl.style.display = 'none'; anexoStatusEl.textContent = '' }
     const anexoInputEl = document.getElementById('f-anexo-upload')
     if (anexoInputEl) anexoInputEl.value = ''
+    const meritoStatusEl = document.getElementById('merito-upload-status')
+    if (meritoStatusEl) { meritoStatusEl.style.display = 'none'; meritoStatusEl.textContent = '' }
+    const meritoInputEl = document.getElementById('f-merito-upload')
+    if (meritoInputEl) meritoInputEl.value = ''
     PAPEIS.forEach(p => editingEquipe[p] = [])
     document.querySelectorAll('.chk-assistente').forEach(c => c.checked = false)
 
@@ -3054,6 +3107,7 @@ async function openExpModal(id = null, isProposta = false, tipoPadrao = 'Exposi�
         document.querySelector('#modal-exposicao .modal').classList.toggle('is-proposta', e.status === 'Proposta')
         const parsedRef = parseLinksAndAnexos(e.referencias_links)
         editingExpAnexos = parsedRef.anexos
+        editingExpMerito = parsedRef.merito || null
         Object.assign(fields, {
           'titulo': e.titulo, 'unidade': e.unidade_id||'', 'tipo-acao': e.tipo_acao||'Exposição',
           'status': e.status, 'semestre': e.semestre||'', 'abertura': e.data_abertura||'',
@@ -3156,20 +3210,24 @@ async function openExpModal(id = null, isProposta = false, tipoPadrao = 'Exposi�
 
     // Travas para Consultor
     const btnAnexar = document.getElementById('btn-anexar-arquivo')
+    const btnMerito = document.getElementById('btn-anexar-merito')
     if (isCons) {
       document.getElementById('modal-exp-save').style.display = 'none'
       document.getElementById('modal-exp-delete').style.display = 'none'
       const btnCron = document.getElementById('btn-gerar-cron')
       if (btnCron) btnCron.style.display = 'none'
       if (btnAnexar) btnAnexar.style.display = 'none'
+      if (btnMerito) btnMerito.style.display = 'none'
     } else {
       document.getElementById('modal-exp-save').style.display = 'block'
       document.getElementById('modal-exp-delete').style.display = id ? 'block' : 'none'
       if (btnAnexar) btnAnexar.style.display = 'inline-block'
+      if (btnMerito) btnMerito.style.display = isSec ? 'none' : 'inline-block'
     }
 
     renderEquipeEditor()
     renderExpAnexos()
+    renderExpMerito()
     document.getElementById('modal-exposicao').classList.add('open')
   } catch (err) {
     console.error('Erro ao abrir modal:', err)
@@ -3305,18 +3363,24 @@ async function _saveExposicaoImpl() {
   if (toInsert.length) await db.from('exposicao_colaboradores').insert(toInsert)
   const acao = isEdit ? 'editou_exposicao' : 'criou_exposicao'
   let detalhe = isEdit ? `Editou a exposição "${titulo}"` : `Criou a exposição "${titulo}"`
+  const antiga = isEdit ? (allExposicoes.find(x => x.id === editingExpId) || timelineExposicoes.find(x => x.id === editingExpId)) : null
+  const statusMudouParaAbertaOuEncerrada = (payload.status === 'Aberta' || payload.status === 'Encerrada') && (!antiga || antiga.status !== payload.status)
   
   if (isEdit) {
-    const antiga = allExposicoes.find(x => x.id === editingExpId)
     const mudancas = detectarMudancas(antiga, payload, payload)
     if (mudancas) detalhe += ` (Mudanças: ${mudancas})`
   }
   
   registrarLog(acao, detalhe, expId)
+  const snapshotEquipe = JSON.parse(JSON.stringify(editingEquipe || {}))
+  const snapshotMerito = editingExpMerito ? { ...editingExpMerito } : null
   closeExpModal()
   showToast(isEdit ? 'Registro atualizado!' : 'Registro criado!')
   await loadExposicoes()
   if (currentPageId === 'outras-acoes') await loadOutrasAcoes()
+  if (statusMudouParaAbertaOuEncerrada) {
+    dispararRotinaEmailStatus(expId, payload, assistentesCheckeds, snapshotEquipe, snapshotMerito)
+  }
 }
 
 async function deleteExposicao() {
@@ -5819,21 +5883,31 @@ function renderPainelDados(e) {
   // Artistas
   const artistasParticipantes = porPapel['Artista'] ? [...new Set(porPapel['Artista'])] : [];
 
-  // Bloco Orçamento, Público Estimado e Per capita
+  // Bloco Orçamento, Público Estimado, Per capita e Planilha de Mérito
+  const parsedRef = parseLinksAndAnexos(e.referencias_links)
+  const meritoObj = parsedRef.merito
   const pcVal = calcPerCapita(e)
   const tileOP = (label, valor, destaque) => `
     <div style="background:${destaque ? '#ecfdf5' : 'var(--bg)'};border:1px solid ${destaque ? '#a7f3d0' : 'var(--border)'};border-radius:8px;padding:14px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${destaque ? '#065f46' : 'var(--muted)'};margin-bottom:8px">${label}</div>
       <div style="font-family:'Fraunces',serif;font-size:${destaque ? 22 : 18}px;${destaque ? 'font-weight:600;color:#065f46' : ''}">${valor}</div>
     </div>`
-  const orcPubHtml = (e.valor_estimado || e.publico_estimado) ? `
+  const meritoHtml = (meritoObj && !isSec) ? `
+    <div style="margin-top:10px;">
+      <a href="${meritoObj.url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#065f46;font-weight:600;text-decoration:none;background:#ecfdf5;padding:8px 14px;border-radius:8px;border:1px solid #a7f3d0;">
+        📊 <span>Planilha de Mérito: <strong>${meritoObj.nome}</strong></span> ${meritoObj.size ? `<span style="color:#047857;font-size:10px;font-weight:400;">(${(meritoObj.size/1024).toFixed(0)} KB)</span>` : ''}
+      </a>
+    </div>` : ''
+  const orcPubHtml = (e.valor_estimado || e.publico_estimado || (meritoObj && !isSec)) ? `
     <div class="dados-secao">
       <div class="dados-secao-titulo">Orçamento e Público Estimado</div>
+      ${(e.valor_estimado || e.publico_estimado) ? `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px">
         ${tileOP('Orçamento Global', isSec ? '<span style="font-size:11px;color:var(--muted)">RESTRITO</span>' : (e.valor_estimado ? fmtMoney(e.valor_estimado) : '—'), false)}
         ${tileOP('Público Estimado', e.publico_estimado ? parseInt(e.publico_estimado).toLocaleString('pt-BR') : '—', false)}
         ${tileOP('Per capita', isSec ? '<span style="font-size:11px;color:var(--muted)">RESTRITO</span>' : (pcVal !== null ? fmtMoney(pcVal) : '—'), true)}
-      </div>
+      </div>` : ''}
+      ${meritoHtml}
     </div>` : ''
 
   // Bloco de Visitação/Público
@@ -5960,8 +6034,6 @@ function renderPainelDados(e) {
       valor: isSec ? '<span style="font-size:10px;color:var(--muted)">RESTRITO</span>' : (valor ? fmtMoney(valor) : '—')
     }
   }).filter(Boolean)
-
-  const parsedRef = parseLinksAndAnexos(e.referencias_links)
 
   el.innerHTML = `
     ${e.sinopse ? `<div class="dados-secao"><div class="dados-secao-titulo">Sinopse</div><div style="font-size:13px;line-height:1.7;white-space:pre-wrap">${e.sinopse}</div></div>` : ''}
@@ -7524,34 +7596,233 @@ async function loadPlanejamentoGeral() {
   document.getElementById('kpi-plan-valor').textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(ttlValor);
 }
 
-// --- ANEXOS DA EXPOSIÇÃO (ATÉ 2 MB NO BUCKET 'Expos') ---
+// --- ANEXOS DA EXPOSIÇÃO E PLANILHA DE MÉRITO (NO BUCKET 'Expos') ---
 let editingExpAnexos = []
+let editingExpMerito = null
 const ANEXOS_MARKER = '\n<!--ANEXOS_JSON:'
 const ANEXOS_END = '-->'
 
 function parseLinksAndAnexos(raw) {
-  if (!raw) return { linksText: '', anexos: [] }
+  if (!raw) return { linksText: '', anexos: [], merito: null }
   const str = String(raw)
   const idx = str.indexOf(ANEXOS_MARKER)
-  if (idx === -1) return { linksText: str, anexos: [] }
+  if (idx === -1) return { linksText: str, anexos: [], merito: null }
   const linksText = str.slice(0, idx).trim()
   const jsonStart = idx + ANEXOS_MARKER.length
   const endIdx = str.indexOf(ANEXOS_END, jsonStart)
   const jsonStr = endIdx !== -1 ? str.slice(jsonStart, endIdx) : str.slice(jsonStart)
   try {
     const parsed = JSON.parse(jsonStr)
-    return { linksText, anexos: Array.isArray(parsed) ? parsed : [] }
+    const arr = Array.isArray(parsed) ? parsed : []
+    const merito = arr.find(x => x && x.tipo === 'merito') || null
+    const anexos = arr.filter(x => x && x.tipo !== 'merito')
+    return { linksText, anexos, merito }
   } catch (e) {
-    return { linksText, anexos: [] }
+    return { linksText, anexos: [], merito: null }
   }
 }
 
-function serializeLinksAndAnexos(linksText, anexosArr) {
+function serializeLinksAndAnexos(linksText, anexosArr, meritoObj = editingExpMerito) {
   const cleanLinks = (linksText || '').trim()
-  const validAnexos = Array.isArray(anexosArr) ? anexosArr : []
-  if (!cleanLinks && validAnexos.length === 0) return null
-  if (validAnexos.length === 0) return cleanLinks
-  return `${cleanLinks}${ANEXOS_MARKER}${JSON.stringify(validAnexos)}${ANEXOS_END}`
+  const validAnexos = (Array.isArray(anexosArr) ? anexosArr : []).filter(x => x && x.tipo !== 'merito')
+  const combined = meritoObj ? [{ ...meritoObj, tipo: 'merito' }, ...validAnexos] : validAnexos
+  if (!cleanLinks && combined.length === 0) return null
+  if (combined.length === 0) return cleanLinks
+  return `${cleanLinks}${ANEXOS_MARKER}${JSON.stringify(combined)}${ANEXOS_END}`
+}
+
+function renderExpMerito() {
+  const listEl = document.getElementById('exp-merito-lista')
+  if (!listEl) return
+  const isCons = currentProfile?.perfil === 'consultor'
+  const isSec = currentProfile?.perfil === 'secretaria'
+  if (isSec) {
+    listEl.innerHTML = '<div style="font-size:11px; color:var(--muted);">🔒 Acesso Restrito</div>'
+    return
+  }
+  if (!editingExpMerito) {
+    listEl.innerHTML = '<div style="font-size:11px; color:var(--muted); font-style:italic;">Nenhuma planilha de mérito anexada.</div>'
+    return
+  }
+  const sizeLabel = editingExpMerito.size ? ` <span style="color:#047857; font-size:10px;">(${(editingExpMerito.size / 1024).toFixed(0)} KB)</span>` : ''
+  listEl.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 12px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px;">
+      <a href="${editingExpMerito.url}" target="_blank" rel="noopener" style="font-size:12px; color:#065f46; text-decoration:none; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📊 ${editingExpMerito.nome}${sizeLabel}</a>
+      ${isCons ? '' : `<button type="button" class="btn-remove-espaco" onclick="removePlanilhaMerito()" title="Remover Planilha de Mérito" style="padding:0 6px; font-size:15px; line-height:1;">&times;</button>`}
+    </div>
+  `
+}
+
+async function uploadPlanilhaMerito(input) {
+  const file = input.files[0]
+  if (!file) return
+
+  const MAX_BYTES = 5 * 1024 * 1024 // 5 MB
+  const statusEl = document.getElementById('merito-upload-status')
+  statusEl.style.display = 'inline'
+
+  if (file.size > MAX_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
+    statusEl.textContent = `⚠️ Arquivo de ${sizeMB} MB excede o limite de 5 MB.`
+    statusEl.style.color = 'var(--accent)'
+    showToast(`A planilha (${sizeMB} MB) ultrapassa o limite de 5 MB.`, true)
+    input.value = ''
+    return
+  }
+
+  statusEl.textContent = 'Enviando planilha de mérito...'
+  statusEl.style.color = 'var(--muted)'
+
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `merito/merito_${Date.now()}_${safeName}`
+
+    const { error } = await db.storage
+      .from('Expos')
+      .upload(filePath, file)
+
+    if (error) {
+      console.error('Erro no upload da planilha de mérito:', error)
+      statusEl.textContent = `Erro: ${error.message}`
+      statusEl.style.color = 'var(--accent)'
+      input.value = ''
+      return
+    }
+
+    const { data: { publicUrl } } = db.storage
+      .from('Expos')
+      .getPublicUrl(filePath)
+
+    if (editingExpMerito?.path) {
+      try { await db.storage.from('Expos').remove([editingExpMerito.path]) } catch (e) {}
+    }
+
+    editingExpMerito = {
+      nome: file.name,
+      url: publicUrl,
+      path: filePath,
+      size: file.size,
+      tipo: 'merito'
+    }
+
+    renderExpMerito()
+    statusEl.textContent = '✅ Planilha anexada! Clique em Salvar para confirmar.'
+    statusEl.style.color = '#065f46'
+    showToast('Planilha de mérito anexada!')
+  } catch (err) {
+    console.error(err)
+    statusEl.textContent = 'Erro inesperado no upload da planilha.'
+    statusEl.style.color = 'var(--accent)'
+  } finally {
+    input.value = ''
+  }
+}
+
+async function removePlanilhaMerito() {
+  const old = editingExpMerito
+  editingExpMerito = null
+  renderExpMerito()
+  if (old?.path) {
+    try { await db.storage.from('Expos').remove([old.path]) } catch (e) {}
+  }
+}
+
+function dispararRotinaEmailStatus(expId, payload, assistentesIds, equipeMap, meritoObj) {
+  try {
+    const unidadeNome = allUnidades.find(u => u.id === payload.unidade_id)?.nome || 'Unidade não informada'
+    const responsaveis = (assistentesIds || [])
+      .map(uid => allUsuarios.find(u => u.id === uid))
+      .filter(Boolean)
+
+    const emails = responsaveis.map(u => u.email).filter(Boolean)
+    const nomesResp = responsaveis.map(u => u.nome).filter(Boolean)
+
+    const pendencias = []
+    if (!payload.data_abertura) pendencias.push('Data de abertura')
+    if (!payload.data_encerramento) pendencias.push('Data de encerramento')
+    if (!payload.valor_estimado) pendencias.push('Orçamento Global (R$)')
+    if (!payload.publico_estimado) pendencias.push('Público Estimado (para cálculo do Per capita)')
+    if (!meritoObj) pendencias.push('Planilha de Mérito anexada')
+    if (!payload.sinopse) pendencias.push('Sinopse da exposição')
+    if (!payload.imagem_url) pendencias.push('Imagem de capa')
+    if (!(equipeMap?.['Curador(a)']?.length)) pendencias.push('Curadoria vinculada na Equipe')
+    if (!(equipeMap?.['Arquiteto(a)']?.length)) pendencias.push('Arquitetura vinculada na Equipe')
+    if (!(equipeMap?.['Produção']?.length)) pendencias.push('Produção vinculada nas Contratações')
+
+    if (payload.status === 'Aberta') {
+      if (!payload.visitas_expo_meta) pendencias.push('Meta de visitas à exposição')
+      if (!payload.visitas_mediadas_meta) pendencias.push('Meta de visitas mediadas')
+    } else if (payload.status === 'Encerrada') {
+      if (!payload.visitas_expo_estatistico) pendencias.push('Visitas à exposição (estatístico final)')
+      if (!payload.visitas_mediadas_estatistico) pendencias.push('Visitas mediadas (estatístico final)')
+      if (!payload.historico_abertura) pendencias.push('Ficha Técnica / Histórico consolidado')
+    }
+
+    const saudacao = nomesResp.length ? `Olá, ${nomesResp.join(', ')}!` : 'Olá!'
+    const listaPendenciasTxt = pendencias.length
+      ? `Identificamos os seguintes campos que ainda podem ser completados ou revisados no card:\n` + pendencias.map(p => `• ${p}`).join('\n')
+      : `Todos os campos principais já constam preenchidos — pedimos apenas uma revisão final nos dados e anexos do card.`
+
+    const assunto = `[Geavt] Exposição "${payload.titulo}" (${unidadeNome}) — Status alterado para ${payload.status}`
+    const corpo = `${saudacao}
+
+O status da exposição "${payload.titulo}" (${unidadeNome}) foi atualizado para "${payload.status}" no sistema de Planejamento Geavt.
+
+Por favor, acesse o card da exposição no sistema (${window.location.origin}${window.location.pathname}) para completar o que for possível de informações${payload.status === 'Encerrada' ? ' e consolidar os dados finais de fechamento' : ''}.
+
+${listaPendenciasTxt}
+
+Obrigado!
+Equipe Geavt — Sesc São Paulo`
+
+    // Se houver um Webhook / Edge Function configurado para disparo silencioso em segundo plano, aciona automaticamente
+    if (window.EMAIL_WEBHOOK_URL) {
+      fetch(window.EMAIL_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: emails, subject: assunto, text: corpo, exposicao_id: expId, status: payload.status })
+      }).catch(e => console.warn('Falha no webhook de e-mail:', e))
+    }
+
+    const subEl = document.getElementById('lembrete-status-sub')
+    if (subEl) {
+      subEl.innerHTML = `O status de <strong>${payload.titulo}</strong> mudou para <span class="tag ${sc(payload.status)}">${payload.status}</span>. ${
+        emails.length
+          ? `Confira abaixo o lembrete preparado automaticamente para <strong>${nomesResp.join(', ')}</strong>:`
+          : `<span style="color:#92400e;">⚠️ Nenhum assistente responsável estava marcado no card — informe o(s) e-mail(s) abaixo para enviar:</span>`
+      }`
+    }
+    document.getElementById('lembrete-destinatarios').value = emails.join('; ')
+    document.getElementById('lembrete-assunto').value = assunto
+    document.getElementById('lembrete-corpo').value = corpo
+    document.getElementById('modal-lembrete-status').classList.add('open')
+  } catch (err) {
+    console.error('Erro ao preparar lembrete de status:', err)
+  }
+}
+
+function abrirEmailLembreteStatus() {
+  const dest = document.getElementById('lembrete-destinatarios').value.trim()
+  const assunto = document.getElementById('lembrete-assunto').value.trim()
+  const corpo = document.getElementById('lembrete-corpo').value
+  const mailtoTo = dest.replace(/\s*;\s*/g, ',')
+  const url = `mailto:${encodeURIComponent(mailtoTo)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`
+  window.location.href = url
+  document.getElementById('modal-lembrete-status').classList.remove('open')
+  showToast('Abrindo cliente de e-mail com o lembrete preenchido!')
+}
+
+async function copiarLembreteStatus() {
+  const dest = document.getElementById('lembrete-destinatarios').value.trim()
+  const assunto = document.getElementById('lembrete-assunto').value.trim()
+  const corpo = document.getElementById('lembrete-corpo').value
+  const textoCompleto = `Para: ${dest}\nAssunto: ${assunto}\n\n${corpo}`
+  try {
+    await navigator.clipboard.writeText(textoCompleto)
+    showToast('Destinatários, assunto e mensagem copiados!')
+  } catch (e) {
+    showToast('Não foi possível copiar automaticamente.', true)
+  }
 }
 
 function renderExpAnexos() {

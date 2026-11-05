@@ -899,6 +899,26 @@
           </div>
 
           <div class="form-field" style="margin-bottom:12px;">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Filtrar por Tipo de Ação</span>
+              <span style="font-size:10px; font-weight:500;">
+                <a href="javascript:void(0)" onclick="document.querySelectorAll('#rel-filter-tipo-acao input').forEach(i=>i.checked=true); loadRelatorios()" style="color:var(--accent2); text-decoration:none;">Todos</a> ·
+                <a href="javascript:void(0)" onclick="document.querySelectorAll('#rel-filter-tipo-acao input').forEach(i=>i.checked=false); loadRelatorios()" style="color:var(--muted); text-decoration:none;">Limpar</a>
+              </span>
+            </label>
+            <div id="rel-filter-tipo-acao" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:6px;">
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Exposição" checked onchange="loadRelatorios()"> Exposição</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Intervenção" checked onchange="loadRelatorios()"> Intervenção</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Ambientação" checked onchange="loadRelatorios()"> Ambientação</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Seminário" checked onchange="loadRelatorios()"> Seminário</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Performance" checked onchange="loadRelatorios()"> Performance</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Instalação" checked onchange="loadRelatorios()"> Instalação</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Trocas e Olhares" checked onchange="loadRelatorios()"> Trocas e Olhares</label>
+              <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Visitas Patrimoniais" checked onchange="loadRelatorios()"> Visitas Patrimoniais</label>
+            </div>
+          </div>
+
+          <div class="form-field" style="margin-bottom:12px;">
             <label>Filtrar por Status</label>
             <div id="rel-filter-status" style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; margin-top:6px;">
               <label style="font-size:11px; cursor:pointer;"><input type="checkbox" value="Em tratativas" checked onchange="loadRelatorios()"> Em tratativas</label>
@@ -8379,7 +8399,8 @@ async function loadRelatorios() {
   const regiao = document.getElementById('rel-filter-regiao').value
   const semestre = document.getElementById('rel-filter-semestre').value
   
-  // Captura status selecionados
+  // Captura tipos de ação e status selecionados
+  const tiposSelected = Array.from(document.querySelectorAll('#rel-filter-tipo-acao input:checked')).map(i => i.value)
   const statusSelected = Array.from(document.querySelectorAll('#rel-filter-status input:checked')).map(i => i.value)
 
   const container = document.getElementById('rel-lista-previa')
@@ -8393,7 +8414,10 @@ async function loadRelatorios() {
 
   const { data, error } = await q
   if (error) { console.error(error); return }
-  currentRelatorioExpos = data || []
+  currentRelatorioExpos = (data || []).filter(e => {
+    const tipo = e.tipo_acao || 'Exposição'
+    return tiposSelected.length > 0 ? tiposSelected.includes(tipo) : false
+  })
   
   // Função para checar pendências
   const getPendencias = (e) => {
@@ -8427,7 +8451,7 @@ async function loadRelatorios() {
 
   container.innerHTML = `
     <table class="data-table">
-      <thead><tr><th>Unidade</th><th>Título</th><th>Status</th><th>Pendências</th></tr></thead>
+      <thead><tr><th>Unidade</th><th>Título</th><th>Tipo</th><th>Status</th><th>Pendências</th></tr></thead>
       <tbody>
         ${currentRelatorioExpos.map(e => {
           const p = getPendencias(e)
@@ -8435,6 +8459,7 @@ async function loadRelatorios() {
           <tr>
             <td style="font-size:11px">${e.unidades?.nome || 'a definir'}</td>
             <td style="font-weight:600">${e.titulo}</td>
+            <td style="font-size:11px; color:var(--muted)">${e.tipo_acao || 'Exposição'}</td>
             <td><span class="tag ${sc(e.status)}">${e.status}</span></td>
             <td>
               ${p.length > 0 

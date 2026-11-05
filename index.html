@@ -7767,8 +7767,10 @@ function dispararRotinaEmailStatus(expId, payload, assistentesIds, equipeMap, me
     const assunto = `[Geavt] Lembrete — Exposição "${payload.titulo}" (${sUnidade})`
     const corpo = `Olá! Vc está recebendo este lembrete porque a exposição "${payload.titulo}" no ${sUnidade} foi ${acaoStatus}. Como vc estava envolvido no projeto, seria importante que completasse no aplicativo aquelas informações que ainda estão em branco, como apontado abaixo. Os dados são importantes para aprimorarmos nossos conhecimentos sobre os processos e colaborar para a memória do nosso trabalho. A Geavt agradece.
 
-Informações em branco no card:
+A título de exemplo, seguem alguns itens que ainda estão em branco neste card:
 ${listaPendenciasTxt}
+
+Aproveitamos para convidar você a preencher, revisar ou aprimorar qualquer outro campo da ficha da exposição!
 
 Acesse em: ${window.location.origin}${window.location.pathname}`
 

@@ -7758,25 +7758,22 @@ function dispararRotinaEmailStatus(expId, payload, assistentesIds, equipeMap, me
       if (!payload.historico_abertura) pendencias.push('Ficha Técnica / Histórico consolidado')
     }
 
-    const saudacao = nomesResp.length ? `Olá, ${nomesResp.join(', ')}!` : 'Olá!'
+    const sUnidade = /^sesc\b/i.test(unidadeNome.trim()) ? unidadeNome.trim() : `Sesc ${unidadeNome.trim()}`
+    const acaoStatus = payload.status === 'Aberta' ? 'aberta' : 'encerrada'
     const listaPendenciasTxt = pendencias.length
-      ? `Identificamos os seguintes campos que ainda podem ser completados ou revisados no card:\n` + pendencias.map(p => `• ${p}`).join('\n')
-      : `Todos os campos principais já constam preenchidos — pedimos apenas uma revisão final nos dados e anexos do card.`
+      ? pendencias.map(p => `• ${p}`).join('\n')
+      : `• Revisão geral dos dados e anexos finais do card`
 
-    const assunto = `[Geavt] Exposição "${payload.titulo}" (${unidadeNome}) — Status alterado para ${payload.status}`
-    const corpo = `${saudacao}
+    const assunto = `[Geavt] Lembrete — Exposição "${payload.titulo}" (${sUnidade})`
+    const corpo = `Olá! Vc está recebendo este lembrete porque a exposição "${payload.titulo}" no ${sUnidade} foi ${acaoStatus}. Como vc estava envolvido no projeto, seria importante que completasse no aplicativo aquelas informações que ainda estão em branco, como apontado abaixo. Os dados são importantes para aprimorarmos nossos conhecimentos sobre os processos e colaborar para a memória do nosso trabalho. A Geavt agradece.
 
-O status da exposição "${payload.titulo}" (${unidadeNome}) foi atualizado para "${payload.status}" no sistema de Planejamento Geavt.
-
-Por favor, acesse o card da exposição no sistema (${window.location.origin}${window.location.pathname}) para completar o que for possível de informações${payload.status === 'Encerrada' ? ' e consolidar os dados finais de fechamento' : ''}.
-
+Informações em branco no card:
 ${listaPendenciasTxt}
 
-Obrigado!
-Equipe Geavt — Sesc São Paulo`
+Acesse em: ${window.location.origin}${window.location.pathname}`
 
     // Se houver um Webhook / Edge Function configurado para disparo silencioso em segundo plano, aciona automaticamente
-    if (window.EMAIL_WEBHOOK_URL) {
+    if (window.EMAIL_WEBHOOK_URL && emails.length) {
       fetch(window.EMAIL_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -7784,17 +7781,24 @@ Equipe Geavt — Sesc São Paulo`
       }).catch(e => console.warn('Falha no webhook de e-mail:', e))
     }
 
-    const subEl = document.getElementById('lembrete-status-sub')
-    if (subEl) {
-      subEl.innerHTML = `O status de <strong>${payload.titulo}</strong> mudou para <span class="tag ${sc(payload.status)}">${payload.status}</span>. ${
-        emails.length
-          ? `Confira abaixo o lembrete preparado automaticamente para <strong>${nomesResp.join(', ')}</strong>:`
-          : `<span style="color:#92400e;">⚠️ Nenhum assistente responsável estava marcado no card — informe o(s) e-mail(s) abaixo para enviar:</span>`
-      }`
-    }
     document.getElementById('lembrete-destinatarios').value = emails.join('; ')
     document.getElementById('lembrete-assunto').value = assunto
     document.getElementById('lembrete-corpo').value = corpo
+
+    // Se já há assistentes responsáveis com e-mail cadastrado, aciona o envio direto sem exigir edição prévia
+    if (emails.length > 0) {
+      const mailtoTo = emails.join(',')
+      const url = `mailto:${encodeURIComponent(mailtoTo)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`
+      window.location.href = url
+      showToast(`📧 Lembrete preparado automaticamente para: ${nomesResp.join(', ')}`)
+      return
+    }
+
+    // Caso o card não tenha nenhum assistente marcado, abre o modal apenas para informar o e-mail destinatário
+    const subEl = document.getElementById('lembrete-status-sub')
+    if (subEl) {
+      subEl.innerHTML = `O status de <strong>${payload.titulo}</strong> mudou para <span class="tag ${sc(payload.status)}">${payload.status}</span>. <span style="color:#92400e;">⚠️ Nenhum assistente responsável estava marcado no card — informe o(s) e-mail(s) abaixo para enviar:</span>`
+    }
     document.getElementById('modal-lembrete-status').classList.add('open')
   } catch (err) {
     console.error('Erro ao preparar lembrete de status:', err)

@@ -7783,7 +7783,14 @@ A Geavt agradece.`
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ to: emails.join(','), subject: assunto, text: corpo, exposicao_id: expId, status: payload.status })
+        body: JSON.stringify({
+          chave: 'GEAVT_SESC_2026_9f8a7b',
+          to: emails.join(','),
+          subject: assunto,
+          text: corpo,
+          exposicao_id: expId,
+          status: payload.status
+        })
       }).then(() => {
         showToast(`📧 E-mail automático enviado para: ${nomesResp.join(', ')}`)
       }).catch(e => console.warn('Falha no webhook de e-mail:', e))

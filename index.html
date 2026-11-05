@@ -7777,7 +7777,8 @@ Acesse em: ${window.location.origin}${window.location.pathname}
 A Geavt agradece.`
 
     // Disparo 100% silencioso em segundo plano via Webhook (sem abrir o Outlook de quem mudou o status)
-    const webhookUrl = window.EMAIL_WEBHOOK_URL || localStorage.getItem('geavt_email_webhook_url') || ''
+    const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxyPcK5ZQES0sHrA-bpOkJMWyp4oD2JAakxA0-JsXGd1eKE-KUB5edFaqnLE00JoR3S/exec'
+    const webhookUrl = window.EMAIL_WEBHOOK_URL || localStorage.getItem('geavt_email_webhook_url') || DEFAULT_WEBHOOK_URL
     if (webhookUrl && emails.length) {
       fetch(webhookUrl, {
         method: 'POST',

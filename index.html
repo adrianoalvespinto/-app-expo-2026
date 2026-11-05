@@ -7765,43 +7765,30 @@ function dispararRotinaEmailStatus(expId, payload, assistentesIds, equipeMap, me
       : `• Revisão geral dos dados e anexos finais do card`
 
     const assunto = `[Geavt] Lembrete — Exposição "${payload.titulo}" (${sUnidade})`
-    const corpo = `Olá! Vc está recebendo este lembrete porque a exposição "${payload.titulo}" no ${sUnidade} foi ${acaoStatus}. Como vc estava envolvido no projeto, seria importante que completasse no aplicativo aquelas informações que ainda estão em branco, como apontado abaixo. Os dados são importantes para aprimorarmos nossos conhecimentos sobre os processos e colaborar para a memória do nosso trabalho. A Geavt agradece.
+    const corpo = `Olá! Vc está recebendo este lembrete porque a exposição "${payload.titulo}" no ${sUnidade} foi ${acaoStatus}. Como vc estava envolvido no projeto, seria importante que completasse no aplicativo aquelas informações que ainda estão em branco, como apontado abaixo. Os dados são importantes para aprimorarmos nossos conhecimentos sobre os processos e colaborar para a memória do nosso trabalho.
 
 A título de exemplo, seguem alguns itens que ainda estão em branco neste card:
 ${listaPendenciasTxt}
 
 Aproveitamos para convidar você a preencher, revisar ou aprimorar qualquer outro campo da ficha da exposição!
 
-Acesse em: ${window.location.origin}${window.location.pathname}`
+Acesse em: ${window.location.origin}${window.location.pathname}
 
-    // Se houver um Webhook / Edge Function configurado para disparo silencioso em segundo plano, aciona automaticamente
-    if (window.EMAIL_WEBHOOK_URL && emails.length) {
-      fetch(window.EMAIL_WEBHOOK_URL, {
+A Geavt agradece.`
+
+    // Disparo 100% silencioso em segundo plano via Webhook (sem abrir o Outlook de quem mudou o status)
+    const webhookUrl = window.EMAIL_WEBHOOK_URL || localStorage.getItem('geavt_email_webhook_url') || ''
+    if (webhookUrl && emails.length) {
+      fetch(webhookUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: emails, subject: assunto, text: corpo, exposicao_id: expId, status: payload.status })
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ to: emails.join(','), subject: assunto, text: corpo, exposicao_id: expId, status: payload.status })
+      }).then(() => {
+        showToast(`📧 E-mail automático enviado para: ${nomesResp.join(', ')}`)
       }).catch(e => console.warn('Falha no webhook de e-mail:', e))
-    }
-
-    document.getElementById('lembrete-destinatarios').value = emails.join('; ')
-    document.getElementById('lembrete-assunto').value = assunto
-    document.getElementById('lembrete-corpo').value = corpo
-
-    // Se já há assistentes responsáveis com e-mail cadastrado, aciona o envio direto sem exigir edição prévia
-    if (emails.length > 0) {
-      const mailtoTo = emails.join(',')
-      const url = `mailto:${encodeURIComponent(mailtoTo)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`
-      window.location.href = url
-      showToast(`📧 Lembrete preparado automaticamente para: ${nomesResp.join(', ')}`)
       return
     }
-
-    // Caso o card não tenha nenhum assistente marcado, abre o modal apenas para informar o e-mail destinatário
-    const subEl = document.getElementById('lembrete-status-sub')
-    if (subEl) {
-      subEl.innerHTML = `O status de <strong>${payload.titulo}</strong> mudou para <span class="tag ${sc(payload.status)}">${payload.status}</span>. <span style="color:#92400e;">⚠️ Nenhum assistente responsável estava marcado no card — informe o(s) e-mail(s) abaixo para enviar:</span>`
-    }
-    document.getElementById('modal-lembrete-status').classList.add('open')
   } catch (err) {
     console.error('Erro ao preparar lembrete de status:', err)
   }
